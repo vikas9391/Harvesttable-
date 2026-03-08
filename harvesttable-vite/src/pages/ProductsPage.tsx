@@ -42,8 +42,6 @@ function useInView(threshold = 0.1): [React.RefObject<HTMLDivElement>, boolean] 
 }
 
 // ─── FilterPanel — defined OUTSIDE ProductsPage ───────────────────────────────
-// Defining this inside the parent causes React to treat it as a new component
-// type on every render, unmounting the <input> and losing focus after each keystroke.
 interface FilterPanelProps {
   searchQuery:      string;
   category:         string;
@@ -281,7 +279,6 @@ const ProductsPage: React.FC = () => {
     transition: `opacity .75s ease ${d}s, transform .75s cubic-bezier(.22,1,.36,1) ${d}s`,
   });
 
-  // Shared props for both sidebar and mobile drawer instances of FilterPanel
   const filterPanelProps = {
     searchQuery,
     category,
@@ -323,16 +320,19 @@ const ProductsPage: React.FC = () => {
           <div style={{ position: 'relative', zIndex: 2, maxWidth: 1200, margin: '0 auto', padding: '72px 32px', width: '100%' }}>
             <div style={{ ...f(0.05), display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <span style={{ display: 'block', width: 28, height: 1, background: 'linear-gradient(to right,#d4a870,transparent)' }}/>
+              {/* ── was hardcoded "Moroccan Botanicals" ── */}
               <p style={{ fontSize: 10, letterSpacing: '0.42em', textTransform: 'uppercase', fontWeight: 700, color: '#d4a870', margin: 0 }}>
-                Moroccan Botanicals
+                {t('shop.heroBadge')}
               </p>
             </div>
+            {/* ── was hardcoded "Our Collection" ── */}
             <h1 style={{ ...f(0.12), fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(34px, 6vw, 62px)', fontWeight: 600, color: '#faf2e8', lineHeight: 1.08, margin: '0 0 16px' }}>
-              Our Collection
+              {t('shop.heroTitle')}
             </h1>
             <div style={{ ...f(0.18), height: 2, width: 60, background: 'linear-gradient(90deg, #7a4a28, #d4a870, #7a4a28)', backgroundSize: '200% auto', animation: 'shimmer 2.8s linear infinite', marginBottom: 18 }}/>
+            {/* ── was hardcoded description ── */}
             <p style={{ ...f(0.24), fontSize: 16, fontWeight: 300, lineHeight: 1.9, color: 'rgba(250,242,232,0.75)', maxWidth: 480, margin: 0 }}>
-              Explore our carefully curated selection of artisan Moroccan herbs, teas, spices, and gift boxes.
+              {t('shop.heroDesc')}
             </p>
           </div>
         </div>
@@ -434,7 +434,7 @@ const ProductsPage: React.FC = () => {
                   <div style={{ textAlign: 'center', padding: '80px 0', color: '#b04040' }}>
                     <p>{error}</p>
                     <button onClick={clearAll} style={{ marginTop: 12, padding: '10px 24px', fontSize: 13, fontWeight: 600, borderRadius: 12, color: '#fff', backgroundColor: C.accent, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Reset Filters
+                      {t('shop.clearFilters')}
                     </button>
                   </div>
                 ) : filteredProducts.length === 0 ? (

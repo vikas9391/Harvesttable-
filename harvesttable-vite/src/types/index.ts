@@ -10,6 +10,13 @@ export interface Product {
   imageType:       string
   image_url?:      string | null
   badge?:          string
+
+  // ── Multilingual fields (optional — may be absent on older/static products) ─
+  name_fr?:        string
+  name_ar?:        string
+  description_fr?: string
+  description_ar?: string
+
   is_organic:      boolean
   is_vegan:        boolean
   is_gluten_free:  boolean

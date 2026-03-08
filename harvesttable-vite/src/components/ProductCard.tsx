@@ -36,18 +36,34 @@ const keyframes = `
 
 const ProductCard: React.FC<Props> = ({ product }) => {
   const { addToCart } = useCart()
-  const { t, isRTL } = useLanguage()
-  const [added, setAdded] = useState(false)
+  const { t, lang, isRTL } = useLanguage()
+  const [added, setAdded]     = useState(false)
   const [pressed, setPressed] = useState(false)
 
   const handleAdd = () => {
-        addToCart(product)
-        setAdded(true)
-        setPressed(true)
-        setTimeout(() => setAdded(false), 1800)
-        setTimeout(() => setPressed(false), 150)    
+    addToCart(product)
+    setAdded(true)
+    setPressed(true)
+    setTimeout(() => setAdded(false), 1800)
+    setTimeout(() => setPressed(false), 150)
   }
 
+  // ── Multilingual display name ─────────────────────────────────────────────
+  const displayName: string = (() => {
+    if (lang === 'fr' && product.name_fr?.trim()) return product.name_fr
+    if (lang === 'ar' && product.name_ar?.trim()) return product.name_ar
+    return product.name
+  })()
+
+  // ── Multilingual badge ────────────────────────────────────────────────────
+  const displayBadge: string | null = (() => {
+    if (!product.badge) return null
+    if (lang === 'fr' && (product as any).badge_fr?.trim()) return (product as any).badge_fr
+    if (lang === 'ar' && (product as any).badge_ar?.trim()) return (product as any).badge_ar
+    return product.badge
+  })()
+
+  const imageType   = product.category ?? product.imageType ?? 'spices'
   const isLowStock  = product.stock_quantity <= 10
   const hasDiscount = !!product.original_price
 
@@ -75,35 +91,36 @@ const ProductCard: React.FC<Props> = ({ product }) => {
         }}
         onMouseEnter={e => {
           const el = e.currentTarget as HTMLElement
-          el.style.boxShadow = '0 8px 28px rgba(122,74,40,0.12)'
+          el.style.boxShadow  = '0 8px 28px rgba(122,74,40,0.12)'
           el.style.borderColor = borderHov
-          el.style.transform = 'translateY(-4px)'
+          el.style.transform   = 'translateY(-4px)'
         }}
         onMouseLeave={e => {
           const el = e.currentTarget as HTMLElement
-          el.style.boxShadow = '0 2px 10px rgba(122,74,40,0.05)'
+          el.style.boxShadow  = '0 2px 10px rgba(122,74,40,0.05)'
           el.style.borderColor = border
-          el.style.transform = 'translateY(0)'
+          el.style.transform   = 'translateY(0)'
         }}
       >
         {/* Image */}
         <div className="relative overflow-hidden">
           <Link to={`/products/${product.slug}`}>
             <ProductImage
-              type={product.imageType}
+              type={imageType}
               name={product.name}
+              imageUrl={product.image_url}
               className="w-full h-48 sm:h-52 transition-transform duration-500 group-hover:scale-105"
             />
           </Link>
 
           {/* Badges */}
           <div className="absolute top-3 flex flex-col gap-1.5" style={{ [isRTL ? 'right' : 'left']: '12px' }}>
-            {product.badge && (
+            {displayBadge && (
               <span
                 className="text-white text-[9px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-lg shadow-sm"
                 style={{ backgroundColor: price, animation: 'badgePop 0.4s cubic-bezier(0.22,1,0.36,1) 0.1s both' }}
               >
-                {product.badge}
+                {displayBadge}
               </span>
             )}
             {hasDiscount && (
@@ -157,11 +174,17 @@ const ProductCard: React.FC<Props> = ({ product }) => {
           <Link to={`/products/${product.slug}`}>
             <h3
               className="font-serif text-base font-bold mb-2 leading-snug transition-colors"
-              style={{ color: heading }}
+              style={{
+                color: heading,
+                ...(lang === 'ar' && {
+                  fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif",
+                  lineHeight: 1.75,
+                }),
+              }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = accent}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = heading}
             >
-              {product.name}
+              {displayName}
             </h3>
           </Link>
 
@@ -205,8 +228,7 @@ const ProductCard: React.FC<Props> = ({ product }) => {
               {added ? (
                 <>
                   <svg
-                    className="w-3.5 h-3.5"
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     style={{ animation: 'addedCheck 0.35s cubic-bezier(0.22,1,0.36,1)' }}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>

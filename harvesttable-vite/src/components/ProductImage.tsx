@@ -1,9 +1,13 @@
 // src/components/ProductImage.tsx
 import React, { useState } from 'react'
 
-interface Props { type: string; name: string; className?: string }
+interface Props {
+  type:      string
+  name:      string
+  imageUrl?: string | null   // real URL from product.image_url
+  className?: string
+}
 
-// SVG icon components per category — no emojis
 const Icons: Record<string, React.FC<{ opacity?: number }>> = {
   spices: ({ opacity = 0.72 }) => (
     <svg width="42" height="42" fill="none" viewBox="0 0 24 24" style={{ opacity }}>
@@ -17,6 +21,14 @@ const Icons: Record<string, React.FC<{ opacity?: number }>> = {
     </svg>
   ),
   tea: ({ opacity = 0.72 }) => (
+    <svg width="42" height="42" fill="none" viewBox="0 0 24 24" style={{ opacity }}>
+      <path stroke="rgba(255,255,255,0.9)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
+        d="M17 8H5a1 1 0 00-1 1v7a4 4 0 004 4h4a4 4 0 004-4v-1h1a3 3 0 000-6z"/>
+      <path stroke="rgba(255,255,255,0.7)" strokeWidth="1" strokeLinecap="round"
+        d="M8 2c0 1.5 2 2 2 3.5M12 2c0 1.5 2 2 2 3.5"/>
+    </svg>
+  ),
+  teas: ({ opacity = 0.72 }) => (
     <svg width="42" height="42" fill="none" viewBox="0 0 24 24" style={{ opacity }}>
       <path stroke="rgba(255,255,255,0.9)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
         d="M17 8H5a1 1 0 00-1 1v7a4 4 0 004 4h4a4 4 0 004-4v-1h1a3 3 0 000-6z"/>
@@ -52,15 +64,23 @@ const Icons: Record<string, React.FC<{ opacity?: number }>> = {
         d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
     </svg>
   ),
+  'gift-boxes': ({ opacity = 0.72 }) => (
+    <svg width="42" height="42" fill="none" viewBox="0 0 24 24" style={{ opacity }}>
+      <path stroke="rgba(255,255,255,0.9)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
+        d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
+    </svg>
+  ),
 }
 
 const configs: Record<string, { from: string; to: string; mid: string }> = {
-  spices: { from: '#c17a3a', to: '#8b3a14', mid: '#a85c26' },
-  tea:    { from: '#4a7a3a', to: '#2d5a28', mid: '#3d6832' },
-  market: { from: '#b8893a', to: '#7a5218', mid: '#9a6d28' },
-  herbs:  { from: '#c45070', to: '#8b2040', mid: '#a83858' },
-  garden: { from: '#4a8050', to: '#2d5a38', mid: '#3a6c44' },
-  gift:   { from: '#9a4a7a', to: '#6a1a50', mid: '#802060' },
+  spices:       { from: '#c17a3a', to: '#8b3a14', mid: '#a85c26' },
+  tea:          { from: '#4a7a3a', to: '#2d5a28', mid: '#3d6832' },
+  teas:         { from: '#4a7a3a', to: '#2d5a28', mid: '#3d6832' },
+  market:       { from: '#b8893a', to: '#7a5218', mid: '#9a6d28' },
+  herbs:        { from: '#c45070', to: '#8b2040', mid: '#a83858' },
+  garden:       { from: '#4a8050', to: '#2d5a38', mid: '#3a6c44' },
+  gift:         { from: '#9a4a7a', to: '#6a1a50', mid: '#802060' },
+  'gift-boxes': { from: '#9a4a7a', to: '#6a1a50', mid: '#802060' },
 }
 
 const keyframes = `
@@ -78,68 +98,106 @@ const keyframes = `
 }
 `
 
-const ProductImage: React.FC<Props> = ({ type, name, className = '' }) => {
-  const c = configs[type] ?? configs.spices
-  const Icon = Icons[type] ?? Icons.spices
-  const [loaded, setLoaded] = useState(false)
+// ── Resolve relative Django media URLs to absolute ────────────────────────────
+// Django's build_absolute_uri should return full URLs, but if a proxy or dev
+// server strips the host, we prefix with the backend base URL.
+const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000'
 
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  // relative path — prefix backend host
+  return `${API_BASE}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+const ProductImage: React.FC<Props> = ({ type, name, imageUrl, className = '' }) => {
+  const c    = configs[type] ?? configs.spices
+  const Icon = Icons[type]  ?? Icons.spices
+
+  const [imgError,  setImgError]  = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
+
+  const resolvedUrl = resolveImageUrl(imageUrl)
+
+  // Reset state whenever the image URL changes (e.g. product updated in admin)
   React.useEffect(() => {
-    const t = setTimeout(() => setLoaded(true), 40)
-    return () => clearTimeout(t)
-  }, [])
+    setImgError(false)
+    setImgLoaded(false)
+  }, [resolvedUrl])
+
+  const showRealImage = !!resolvedUrl && !imgError
 
   return (
     <div
       className={`relative flex flex-col items-center justify-center select-none overflow-hidden ${className}`}
-      style={{
-        background: `linear-gradient(150deg, ${c.from} 0%, ${c.mid} 50%, ${c.to} 100%)`,
-        animation: loaded ? 'productImageIn 0.45s cubic-bezier(0.22,1,0.36,1) both' : 'none',
-      }}
+      style={{ background: `linear-gradient(150deg, ${c.from} 0%, ${c.mid} 50%, ${c.to} 100%)` }}
     >
       <style>{keyframes}</style>
 
-      {/* Radial highlight */}
+      {/* ── Real product photo ───────────────────────────────────────────── */}
+      {showRealImage && (
+        <img
+          src={resolvedUrl}
+          alt={name}
+          onLoad={()  => setImgLoaded(true)}
+          onError={() => setImgError(true)}
+          style={{
+            position:   'absolute',
+            inset:       0,
+            width:      '100%',
+            height:     '100%',
+            objectFit:  'cover',
+            opacity:    imgLoaded ? 1 : 0,
+            transition: 'opacity 0.35s ease',
+            animation:  imgLoaded ? 'productImageIn 0.45s cubic-bezier(0.22,1,0.36,1) both' : 'none',
+          }}
+        />
+      )}
+
+      {/* ── Gradient placeholder (always underneath; shown when no photo) ── */}
       <div
-        className="absolute inset-0 opacity-[0.06]"
+        className="absolute inset-0 opacity-[0.06] pointer-events-none"
         style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 0%, transparent 60%)' }}
       />
 
-      {/* Shimmer sweep */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
-          animation: 'shimmerSweep 2.4s cubic-bezier(0.4,0,0.6,1) 0.5s infinite',
-        }}
-      />
+      {/* Shimmer — only while real image hasn't loaded yet */}
+      {showRealImage && !imgLoaded && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+            animation:  'shimmerSweep 2.4s cubic-bezier(0.4,0,0.6,1) 0.5s infinite',
+          }}
+        />
+      )}
 
-      {/* Category icon */}
-      <div
-        className="relative"
-        style={{
-          filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.22))',
-          animation: 'iconFloat 3s ease-in-out infinite',
-        }}
-      >
-        <Icon opacity={0.88}/>
-      </div>
-
-      {/* Product name label */}
-      <span style={{
-        position: 'relative',
-        color: 'rgba(255,255,255,0.50)',
-        fontSize: '0.6rem',
-        marginTop: '8px',
-        letterSpacing: '0.06em',
-        maxWidth: '100px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        textAlign: 'center',
-        textTransform: 'uppercase',
-      }}>
-        {name}
-      </span>
+      {/* Icon + name label — shown when there is no real image (or while loading) */}
+      {!showRealImage && (
+        <>
+          <div
+            className="relative z-10"
+            style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.22))', animation: 'iconFloat 3s ease-in-out infinite' }}
+          >
+            <Icon opacity={0.88}/>
+          </div>
+          <span style={{
+            position:      'relative',
+            zIndex:         10,
+            color:         'rgba(255,255,255,0.50)',
+            fontSize:      '0.6rem',
+            marginTop:     '8px',
+            letterSpacing: '0.06em',
+            maxWidth:      '100px',
+            overflow:      'hidden',
+            textOverflow:  'ellipsis',
+            whiteSpace:    'nowrap',
+            textAlign:     'center',
+            textTransform: 'uppercase',
+          }}>
+            {name}
+          </span>
+        </>
+      )}
     </div>
   )
 }

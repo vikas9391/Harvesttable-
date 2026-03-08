@@ -1,5 +1,5 @@
 // src/components/Navbar.tsx
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react'
+import React, { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import CartDrawer from './CartDrawer'
@@ -147,6 +147,119 @@ const IconGlobe = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
+// ─── Google Translate Nudge ────────────────────────────────────────────────────
+// Detects if Google Translate was applied (via browser extension or Chrome's
+// built-in offer) and shows a toast pointing users to the built-in switcher.
+const TranslateNudge: React.FC = () => {
+  const [show, setShow] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    // Strip Google Translate classes immediately if already present on mount
+    const html = document.documentElement
+    html.classList.remove('translated-ltr', 'translated-rtl')
+
+    // Watch for Google Translate being applied after mount
+    const observer = new MutationObserver(() => {
+      const hasTranslated =
+        html.classList.contains('translated-ltr') ||
+        html.classList.contains('translated-rtl') ||
+        !!document.querySelector('.goog-te-banner-frame')
+
+      if (hasTranslated && !dismissed) {
+        // Immediately strip the translate classes so layout isn't broken
+        html.classList.remove('translated-ltr', 'translated-rtl')
+        // Also remove the body top offset Google Translate injects
+        document.body.style.top = ''
+        setShow(true)
+      }
+    })
+
+    observer.observe(html, {
+      attributes: true,
+      attributeFilter: ['class', 'lang'],
+      subtree: false,
+    })
+
+    // Also watch <body> for the Google Translate toolbar iframe injection
+    observer.observe(document.body, {
+      childList: true,
+      subtree: false,
+    })
+
+    return () => observer.disconnect()
+  }, [dismissed])
+
+  if (!show) return null
+
+  return (
+    <div
+      dir="ltr"
+      style={{
+        position: 'fixed',
+        bottom: 28,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        padding: '13px 18px',
+        borderRadius: 16,
+        backgroundColor: '#2a1a0e',
+        color: '#faf7f2',
+        fontSize: 13,
+        fontWeight: 500,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.18)',
+        whiteSpace: 'nowrap',
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        animation: 'nudgeIn 0.35s cubic-bezier(0.22,1,0.36,1)',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <style>{`
+        @keyframes nudgeIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(16px) scale(0.95); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+        }
+      `}</style>
+
+      {/* Globe icon */}
+      <span style={{ display: 'flex', alignItems: 'center', color: '#c8a882', flexShrink: 0 }}>
+        <IconGlobe size={16} />
+      </span>
+
+      <span style={{ color: '#e8d8c4' }}>
+        Use our{' '}
+        <span style={{ color: '#c8a882', fontWeight: 700 }}>built-in language switcher</span>
+        {' '}
+        <span style={{ color: '#c8a882', fontSize: 11 }}>( EN / FR / AR )</span>
+        {' '}for the best experience.
+      </span>
+
+      <button
+        onClick={() => { setShow(false); setDismissed(true) }}
+        style={{
+          flexShrink: 0,
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: '#faf7f2',
+          borderRadius: 8,
+          padding: '5px 12px',
+          cursor: 'pointer',
+          fontSize: 12,
+          fontWeight: 600,
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.20)'}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
+      >
+        Got it
+      </button>
+    </div>
+  )
+}
+
 // ─── Language Dropdown ─────────────────────────────────────────────────────────
 const LANGUAGES: { code: LangCode; label: string; native: string; abbr: string }[] = [
   { code: 'en', label: 'English',  native: 'English',  abbr: 'EN' },
@@ -157,11 +270,25 @@ const LANGUAGES: { code: LangCode; label: string; native: string; abbr: string }
 const LangMenu: React.FC = () => {
   const { lang, setLang, t } = useLanguage()
   const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
   const active = LANGUAGES.find(l => l.code === lang) ?? LANGUAGES[0]
 
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('keydown', keyHandler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('keydown', keyHandler)
+    }
+  }, [open])
+
   return (
-    // Always LTR — language picker UI should never flip
-    <div className="relative hidden sm:block" dir="ltr">
+    <div ref={ref} className="relative hidden sm:block" dir="ltr">
       <button
         onClick={() => setOpen(v => !v)}
         className="flex items-center justify-center gap-1.5 rounded-lg transition-colors"
@@ -186,10 +313,8 @@ const LangMenu: React.FC = () => {
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-[80]" onClick={() => setOpen(false)} />
-          <div
-            className="absolute left-0 top-[calc(100%+10px)] z-[81] rounded-2xl overflow-hidden"
+        <div
+          className="absolute left-0 top-[calc(100%+10px)] z-[91] rounded-2xl overflow-hidden"
             style={{
               backgroundColor: C.surface,
               border: `1px solid ${C.border}`,
@@ -247,7 +372,6 @@ const LangMenu: React.FC = () => {
               })}
             </div>
           </div>
-        </>
       )}
     </div>
   )
@@ -259,9 +383,24 @@ const UserMenu: React.FC = () => {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
   if (!user) return null
 
   const initial = user?.firstName?.charAt(0)?.toUpperCase() || 'U'
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('keydown', keyHandler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('keydown', keyHandler)
+    }
+  }, [open])
 
   const handleLogout = async () => {
     setOpen(false)
@@ -280,8 +419,7 @@ const UserMenu: React.FC = () => {
   ]
 
   return (
-    // Always LTR — profile chip and dropdown must never flip direction
-    <div className="relative" dir="ltr">
+    <div ref={ref} className="relative" dir="ltr">
       <button
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition-all"
@@ -308,17 +446,14 @@ const UserMenu: React.FC = () => {
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-[80]" onClick={() => setOpen(false)} />
           <div
-            className="absolute right-0 top-[calc(100%+10px)] z-[81] rounded-2xl overflow-hidden"
+            className="absolute right-0 top-[calc(100%+10px)] z-[91] rounded-2xl overflow-hidden"
             style={{
               backgroundColor: C.surface, border: `1px solid ${C.border}`, minWidth: 224,
               boxShadow: '0 16px 48px rgba(42,26,14,0.14), 0 4px 12px rgba(42,26,14,0.08)',
               animation: 'dropdownIn 0.22s cubic-bezier(0.22,1,0.36,1)',
             }}
           >
-            {/* User header */}
             <div
               style={{
                 padding: '14px 16px',
@@ -368,7 +503,6 @@ const UserMenu: React.FC = () => {
               </div>
             </div>
 
-            {/* Menu items — use LTR layout but allow text to read naturally */}
             <div style={{ padding: '6px 0' }}>
               {menuItems.map((item, i) => (
                 <button
@@ -389,7 +523,6 @@ const UserMenu: React.FC = () => {
               ))}
             </div>
 
-            {/* Sign out */}
             <div style={{ borderTop: `1px solid ${C.border}`, padding: '6px 0' }}>
               <button
                 onClick={handleLogout}
@@ -406,7 +539,6 @@ const UserMenu: React.FC = () => {
               </button>
             </div>
           </div>
-        </>
       )}
     </div>
   )
@@ -458,7 +590,9 @@ const Navbar: React.FC = () => {
         @keyframes cartBadgePop   { 0% { transform:scale(0); } 60% { transform:scale(1.25); } 100% { transform:scale(1); } }
       `}</style>
 
-      {/* dir="ltr" on nav overrides <html dir="rtl"> — keeps logo-left, actions-right always */}
+      {/* ✅ Google Translate nudge — renders outside the nav so it's never clipped */}
+      <TranslateNudge />
+
       <nav
         dir="ltr"
         className="fixed top-0 left-0 right-0 z-[90] transition-all duration-300"
@@ -471,7 +605,7 @@ const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
           <div className="flex items-center justify-between h-[68px]">
 
-            {/* Logo — always on the left, wordmark never reverses */}
+            {/* Logo */}
             <Link
               to="/"
               className="flex items-baseline gap-2.5 flex-shrink-0"
@@ -485,7 +619,7 @@ const Navbar: React.FC = () => {
               </span>
             </Link>
 
-            {/* Desktop nav links — reversed order in RTL so they read right-to-left */}
+            {/* Desktop nav links */}
             <div className="hidden md:flex items-center gap-0.5" dir={isRTL ? 'rtl' : 'ltr'}>
               {(isRTL ? [...links].reverse() : links).map((l, i) => (
                 <Link
@@ -506,10 +640,7 @@ const Navbar: React.FC = () => {
               ))}
             </div>
 
-            {/*
-              Right actions: always dir="ltr" so cart badge, profile chip,
-              sign-in/get-started buttons, and the hamburger never mirror.
-            */}
+            {/* Right actions */}
             <div
               dir="ltr"
               className="flex items-center gap-1"
@@ -597,28 +728,27 @@ const Navbar: React.FC = () => {
           style={{ borderTop: mobileOpen ? `1px solid ${C.navBorder}` : 'none', backgroundColor: C.bgScroll }}
         >
           <div className="px-4 py-3 space-y-0.5">
-            {/* Nav links respect RTL order */}
             <div dir={isRTL ? 'rtl' : 'ltr'}>
-            {(isRTL ? [...links].reverse() : links).map((l, i) => (
-              <Link
-                key={l.to} to={l.to}
-                className="flex items-center px-4 py-3 rounded-xl text-sm transition-colors"
-                style={{
-                  color: isActive(l.to) ? C.linkActive : C.linkDefault,
-                  backgroundColor: isActive(l.to) ? C.linkActiveBg : 'transparent',
-                  fontWeight: isActive(l.to) ? '600' : '500',
-                  textDecoration: 'none',
-                  opacity: mobileOpen ? 1 : 0,
-                  transform: mobileOpen ? 'translateX(0)' : 'translateX(-12px)',
-                  transition: `opacity 0.3s ease ${i * 0.05}s, transform 0.3s ease ${i * 0.05}s`,
-                }}
-              >
-                {l.label}
-              </Link>
-            ))}
-
+              {(isRTL ? [...links].reverse() : links).map((l, i) => (
+                <Link
+                  key={l.to} to={l.to}
+                  className="flex items-center px-4 py-3 rounded-xl text-sm transition-colors"
+                  style={{
+                    color: isActive(l.to) ? C.linkActive : C.linkDefault,
+                    backgroundColor: isActive(l.to) ? C.linkActiveBg : 'transparent',
+                    fontWeight: isActive(l.to) ? '600' : '500',
+                    textDecoration: 'none',
+                    opacity: mobileOpen ? 1 : 0,
+                    transform: mobileOpen ? 'translateX(0)' : 'translateX(-12px)',
+                    transition: `opacity 0.3s ease ${i * 0.05}s, transform 0.3s ease ${i * 0.05}s`,
+                  }}
+                >
+                  {l.label}
+                </Link>
+              ))}
             </div>
-            {/* Mobile language switcher — always LTR layout */}
+
+            {/* Mobile language switcher */}
             <div
               dir="ltr"
               style={{
@@ -634,7 +764,7 @@ const Navbar: React.FC = () => {
               <MobileLangSwitcher />
             </div>
 
-            {/* Mobile auth — always LTR layout */}
+            {/* Mobile auth */}
             <div
               dir="ltr"
               style={{
@@ -682,7 +812,7 @@ const Navbar: React.FC = () => {
   )
 }
 
-// Small inline component to use the hook properly in mobile menu
+// ─── Mobile Language Switcher ─────────────────────────────────────────────────
 const MobileLangSwitcher: React.FC = () => {
   const { lang, setLang } = useLanguage()
   return (

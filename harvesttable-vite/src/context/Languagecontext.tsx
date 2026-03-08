@@ -630,8 +630,11 @@ const translations: Record<LangCode, Record<string, string>> = {
 'profile.noOrdersDesc': 'Your order history will appear here once you place your first order.',  
 'profile.wishlistEmpty': 'Your wishlist is empty.',
 'profile.browseProducts': 'Browse Products',
-
-// fr
+'page.title': 'HarvestTable - Moroccan Artisan Herbs & Teas',
+'page.description': 'HarvestTable - Artisan Moroccan Herbs, Teas & Spices',
+'shop.heroBadge': 'Moroccan Botanicals',
+'shop.heroTitle': 'Our Collection',
+'shop.heroDesc': 'Explore our carefully curated selection of artisan Moroccan herbs, teas, spices, and gift boxes.',
 },
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1210,6 +1213,12 @@ const translations: Record<LangCode, Record<string, string>> = {
 'profile.noOrdersDesc': 'Votre historique de commandes apparaîtra ici après votre premier achat.',
 'profile.wishlistEmpty': 'Votre liste de souhaits est vide.',
 'profile.browseProducts': 'Parcourir les produits', 
+
+'page.title': 'HarvestTable - Herbes & Thés Artisanaux Marocains',
+'page.description': 'HarvestTable - Herbes, Thés et Épices Artisanaux Marocains',
+'shop.heroBadge': 'Botaniques Marocaines',
+'shop.heroTitle': 'Notre Collection',
+'shop.heroDesc': 'Explorez notre sélection soigneusement curatée de produits artisanaux marocains : herbes, thés, épices et coffrets cadeaux.',
 },
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1786,6 +1795,11 @@ const translations: Record<LangCode, Record<string, string>> = {
 'profile.noOrdersDesc': 'سيظهر سجل طلباتك هنا بمجرد تقديم طلبك الأول.',  
 'profile.wishlistEmpty': 'قائمة المفضلة فارغة.',
 'profile.browseProducts': 'تصفح المنتجات',
+'page.title': 'HarvestTable - أعشاب وشاي مغربي أصيل',
+'page.description': 'HarvestTable - أعشاب وشاي وتوابل مغربية حرفية',
+'shop.heroBadge': 'نباتات مغربية',
+'shop.heroTitle': 'مجموعتنا',
+'shop.heroDesc': 'استكشف تشكيلتنا المختارة بعناية من الأعشاب والشاي والتوابل وصناديق الهدايا المغربية الحرفية.',
 },
 }
 
@@ -1818,6 +1832,23 @@ export const LangProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = lang
     document.documentElement.dir = isRTL ? 'rtl' : 'ltr'
   }, [lang, isRTL])
+
+  // ✅ Update document title and meta description whenever language changes
+  useEffect(() => {
+    const titleMap: Record<LangCode, string> = {
+      en: 'HarvestTable - Moroccan Artisan Herbs & Teas',
+      fr: 'HarvestTable - Herbes & Thés Artisanaux Marocains',
+      ar: 'HarvestTable - أعشاب وشاي مغربي أصيل',
+    }
+    const descMap: Record<LangCode, string> = {
+      en: 'HarvestTable - Artisan Moroccan Herbs, Teas & Spices',
+      fr: 'HarvestTable - Herbes, Thés et Épices Artisanaux Marocains',
+      ar: 'HarvestTable - أعشاب وشاي وتوابل مغربية حرفية',
+    }
+    document.title = titleMap[lang]
+    const metaDesc = document.querySelector('meta[name="description"]')
+    if (metaDesc) metaDesc.setAttribute('content', descMap[lang])
+  }, [lang])
 
   const t = (key: string, vars?: Record<string, string>): string => {
     let str = translations[lang][key] ?? translations['en'][key] ?? key

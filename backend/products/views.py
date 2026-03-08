@@ -1,6 +1,7 @@
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 
@@ -9,15 +10,15 @@ from .serializers import ProductSerializer, ProductListSerializer, ProductReview
 
 
 class ProductFilter(django_filters.FilterSet):
-    min_price    = django_filters.NumberFilter(field_name='price', lookup_expr='gte')
-    max_price    = django_filters.NumberFilter(field_name='price', lookup_expr='lte')
-    category     = django_filters.CharFilter(field_name='category',     lookup_expr='exact')
-    is_organic   = django_filters.BooleanFilter(field_name='is_organic')
-    is_vegan     = django_filters.BooleanFilter(field_name='is_vegan')
+    min_price      = django_filters.NumberFilter(field_name='price', lookup_expr='gte')
+    max_price      = django_filters.NumberFilter(field_name='price', lookup_expr='lte')
+    category       = django_filters.CharFilter(field_name='category',     lookup_expr='exact')
+    is_organic     = django_filters.BooleanFilter(field_name='is_organic')
+    is_vegan       = django_filters.BooleanFilter(field_name='is_vegan')
     is_gluten_free = django_filters.BooleanFilter(field_name='is_gluten_free')
     is_fair_trade  = django_filters.BooleanFilter(field_name='is_fair_trade')
-    is_featured  = django_filters.BooleanFilter(field_name='is_featured')
-    is_seasonal  = django_filters.BooleanFilter(field_name='is_seasonal')
+    is_featured    = django_filters.BooleanFilter(field_name='is_featured')
+    is_seasonal    = django_filters.BooleanFilter(field_name='is_seasonal')
 
     class Meta:
         model  = Product
@@ -38,9 +39,11 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 class ProductViewSet(viewsets.ModelViewSet):
     queryset           = Product.objects.all()
     permission_classes = [IsAdminOrReadOnly]
+    # ✅ Support both JSON and multipart/form-data (for image uploads)
+    parser_classes     = [MultiPartParser, FormParser, JSONParser]
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class    = ProductFilter
-    search_fields      = ['name', 'description', 'origin']
+    search_fields      = ['name', 'description', 'origin', 'name_fr', 'name_ar']
     ordering_fields    = ['price', 'name', 'created_at', 'stock_quantity']
     ordering           = ['-created_at']
     lookup_field       = 'slug'
@@ -49,6 +52,58 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return ProductListSerializer
         return ProductSerializer
+
+    def get_serializer_context(self):
+        """Pass request into serializer so image_url builds absolute URLs."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    def create(self, request, *args, **kwargs):
+        """
+        Handle both multipart/form-data (with image file) and JSON.
+        Converts string booleans from FormData to actual booleans.
+        """
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+
+        # FormData sends booleans as strings — convert them
+        bool_fields = [
+            'is_organic', 'is_vegan', 'is_gluten_free', 'is_fair_trade',
+            'is_featured', 'is_seasonal', 'in_stock',
+        ]
+        for field in bool_fields:
+            if field in data:
+                val = data[field]
+                if isinstance(val, str):
+                    data[field] = val.lower() in ('true', '1', 'yes')
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Handle PATCH — converts string booleans from FormData just like create.
+        """
+        instance = self.get_object()
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+
+        bool_fields = [
+            'is_organic', 'is_vegan', 'is_gluten_free', 'is_fair_trade',
+            'is_featured', 'is_seasonal', 'in_stock',
+        ]
+        for field in bool_fields:
+            if field in data:
+                val = data[field]
+                if isinstance(val, str):
+                    data[field] = val.lower() in ('true', '1', 'yes')
+
+        serializer = self.get_serializer(instance, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     # ── /api/products/<slug>/reviews/  (POST) ────────────────────────────────
     @action(detail=True, methods=['post'], url_path='reviews',
@@ -66,7 +121,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     def featured(self, request):
         qs = Product.objects.filter(in_stock=True, is_featured=True)
         if not qs.exists():
-            # Fallback: products that have a badge
             qs = Product.objects.filter(in_stock=True).exclude(badge='')[:4]
         serializer = ProductListSerializer(qs[:4], many=True, context={'request': request})
         return Response(serializer.data)

@@ -35,7 +35,12 @@ class ProductSerializer(serializers.ModelSerializer):
         model  = Product
         fields = [
             'id', 'name', 'slug', 'description', 'price', 'category',
-            'origin', 'image', 'image_url', 'badge',
+            'origin', 'image', 'image_url',
+            'badge', 'badge_fr', 'badge_ar',          # ← all 3 badge langs
+            # ── Multilingual name & description ──────────────────────────
+            'name_fr', 'name_ar',
+            'description_fr', 'description_ar',
+            # ─────────────────────────────────────────────────────────────
             'is_organic', 'is_vegan', 'is_gluten_free', 'is_fair_trade',
             'is_featured', 'is_seasonal',
             'in_stock', 'stock_quantity',
@@ -61,7 +66,13 @@ class ProductListSerializer(serializers.ModelSerializer):
         model  = Product
         fields = [
             'id', 'name', 'slug', 'price', 'category', 'origin',
-            'image_url', 'badge',
+            'image_url',
+            'badge', 'badge_fr', 'badge_ar',          # ← all 3 badge langs
+            # ── Multilingual name & description ──────────────────────────
+            'name_fr', 'name_ar',
+            'description',        # ← fixes EN description always reading as ''
+            'description_fr', 'description_ar',
+            # ─────────────────────────────────────────────────────────────
             'is_organic', 'is_vegan', 'is_gluten_free', 'is_fair_trade',
             'is_featured', 'is_seasonal',
             'in_stock', 'stock_quantity',

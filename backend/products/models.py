@@ -16,20 +16,39 @@ class Product(models.Model):
     price           = models.DecimalField(max_digits=8, decimal_places=2)
     category        = models.CharField(max_length=20, choices=Category.choices)
     origin          = models.CharField(max_length=200)
-    # Store a relative URL path like '/images/products/mint.jpg'
-    # OR leave blank and rely on image (file upload).
+
+    # ── Multilingual fields ───────────────────────────────────────────────────
+    name_fr         = models.CharField(max_length=200, blank=True, default='',
+                        help_text="Product name in French")
+    name_ar         = models.CharField(max_length=200, blank=True, default='',
+                        help_text="Product name in Arabic")
+    description_fr  = models.TextField(blank=True, default='',
+                        help_text="Product description in French")
+    description_ar  = models.TextField(blank=True, default='',
+                        help_text="Product description in Arabic")
+
+    # ── Images ────────────────────────────────────────────────────────────────
     image_url_path  = models.CharField(
         max_length=500, blank=True,
         help_text="Relative URL, e.g. /images/products/mint.jpg — used when no file is uploaded"
     )
     image           = models.ImageField(upload_to='products/', blank=True, null=True)
+
     badge           = models.CharField(max_length=50, blank=True)
+    # ── Multilingual badge ────────────────────────────────────────────────────
+    badge_fr        = models.CharField(max_length=50, blank=True, default='',
+                        help_text="Badge text in French, e.g. 'Nouveau'")
+    badge_ar        = models.CharField(max_length=50, blank=True, default='',
+                        help_text="Badge text in Arabic, e.g. 'جديد'")
+
     is_organic      = models.BooleanField(default=False)
     is_vegan        = models.BooleanField(default=False)
     is_gluten_free  = models.BooleanField(default=False)
     is_fair_trade   = models.BooleanField(default=False)
-    is_featured     = models.BooleanField(default=False, help_text="Show on homepage Featured section")
-    is_seasonal     = models.BooleanField(default=False, help_text="Show in Seasonal Treasures section")
+    is_featured     = models.BooleanField(default=False,
+                        help_text="Show on homepage Featured section")
+    is_seasonal     = models.BooleanField(default=False,
+                        help_text="Show in Seasonal Treasures section")
     in_stock        = models.BooleanField(default=True)
     stock_quantity  = models.PositiveIntegerField(default=100)
     created_at      = models.DateTimeField(auto_now_add=True)
