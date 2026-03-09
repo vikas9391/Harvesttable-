@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useLanguage } from '../context/Languagecontext'
 import ProductImage from './ProductImage'
+import { Product } from '../types'
 
 interface Props { isOpen: boolean; onClose: () => void }
 
@@ -42,9 +43,16 @@ const keyframes = `
 }
 `
 
+// ── Helper: pick the right name for the current language ─────────────────────
+const localName = (product: Product, lang: string): string => {
+  if (lang === 'fr' && product.name_fr?.trim()) return product.name_fr
+  if (lang === 'ar' && product.name_ar?.trim()) return product.name_ar
+  return product.name
+}
+
 const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
   const { items, removeFromCart, updateQuantity, totalPrice, clearCart } = useCart()
-  const { t, isRTL } = useLanguage()
+  const { t, isRTL, lang } = useLanguage()   // ← lang added
   const shippingFree = totalPrice >= 50
   const shipping     = shippingFree ? 0 : 5.99
   const pct          = Math.min((totalPrice / 50) * 100, 100)
@@ -78,7 +86,7 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
         style={{
           backgroundColor: T.bg,
           [isRTL ? 'left' : 'right']: 0,
-          borderLeft: isRTL ? 'none' : `1px solid ${T.border}`,
+          borderLeft:  isRTL ? 'none' : `1px solid ${T.border}`,
           borderRight: isRTL ? `1px solid ${T.border}` : 'none',
           transform: isOpen ? 'translateX(0)' : `translateX(${isRTL ? '-100%' : '100%'})`,
           transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)',
@@ -90,7 +98,7 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
           className="flex items-center justify-between px-5 py-4"
           style={{
             borderBottom: `1px solid ${T.border}`,
-            opacity: isOpen ? 1 : 0,
+            opacity:   isOpen ? 1 : 0,
             transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
             transition: 'opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s',
           }}
@@ -118,11 +126,11 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             className="p-2 rounded-lg transition-all"
             style={{ color: T.muted }}
             onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.color = T.heading
+              ;(e.currentTarget as HTMLElement).style.color     = T.heading
               ;(e.currentTarget as HTMLElement).style.transform = 'rotate(90deg)'
             }}
             onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.color = T.muted
+              ;(e.currentTarget as HTMLElement).style.color     = T.muted
               ;(e.currentTarget as HTMLElement).style.transform = 'rotate(0deg)'
             }}
           >
@@ -212,18 +220,27 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
                   animation: `drawerItemIn 0.4s cubic-bezier(0.22,1,0.36,1) ${idx * 0.05}s both`,
                 }}
               >
-                <Link to={`/product/${item.product.slug}`} onClick={onClose} className="flex-shrink-0">
-                  <ProductImage type={item.product.imageType} name={item.product.name} className="w-16 h-16 rounded-lg"/>
+                <Link to={`/products/${item.product.slug}`} onClick={onClose} className="flex-shrink-0">
+                  <ProductImage
+                    type={item.product.category ?? item.product.imageType ?? 'spices'}
+                    name={item.product.name}
+                    imageUrl={item.product.image_url}
+                    className="w-16 h-16 rounded-lg"
+                  />
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/product/${item.product.slug}`} onClick={onClose}>
+                  <Link to={`/products/${item.product.slug}`} onClick={onClose}>
+                    {/* ── Multilingual product name ── */}
                     <p
                       className="text-sm font-semibold truncate transition-colors"
-                      style={{ color: T.heading }}
+                      style={{
+                        color: T.heading,
+                        ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }),
+                      }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = T.accent}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = T.heading}
                     >
-                      {item.product.name}
+                      {localName(item.product, lang)}
                     </p>
                   </Link>
                   <p className="text-sm font-bold mt-0.5" style={{ color: T.price }}>
@@ -271,11 +288,11 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
                       className="ml-auto p-1.5 rounded-lg transition-all"
                       style={{ color: '#d4b896' }}
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.color = '#b04040'
+                        ;(e.currentTarget as HTMLElement).style.color     = '#b04040'
                         ;(e.currentTarget as HTMLElement).style.transform = 'scale(1.15)'
                       }}
                       onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.color = '#d4b896'
+                        ;(e.currentTarget as HTMLElement).style.color     = '#d4b896'
                         ;(e.currentTarget as HTMLElement).style.transform = 'scale(1)'
                       }}
                     >

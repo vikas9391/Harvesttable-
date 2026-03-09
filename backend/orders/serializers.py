@@ -29,7 +29,6 @@ class OrderSerializer(serializers.ModelSerializer):
             'status', 'subtotal', 'shipping', 'total',
             'notes', 'items', 'created_at',
         ]
-        # ✅ status removed — it must be writable for admin PATCH
         read_only_fields = ['id', 'order_number', 'subtotal', 'total', 'created_at']
 
     def get_address(self, obj):
@@ -74,18 +73,39 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     def get_product(self, obj):
         p = obj.product
+
+        # ── resolve image URL ──────────────────────────────────────────────
+        request = self.context.get('request')
+        image_url = None
+        if getattr(p, 'image', None) and request:
+            image_url = request.build_absolute_uri(p.image.url)
+        elif getattr(p, 'image_url_path', None):
+            image_url = (
+                request.build_absolute_uri(p.image_url_path)
+                if request else p.image_url_path
+            )
+
         return {
             'id':             p.id,
             'name':           p.name,
             'slug':           p.slug,
             'price':          str(p.price),
-            # ✅ use getattr with fallback for any field that might differ
-            'imageType':      getattr(p, 'image_type', getattr(p, 'imageType', None)),
-            'image_url':      getattr(p, 'image_url', None),
-            'badge':          getattr(p, 'badge', None),
+            'category':       getattr(p, 'category', ''),
             'origin':         getattr(p, 'origin', ''),
             'description':    getattr(p, 'description', ''),
-            'category':       getattr(p, 'category', ''),
+            'image_url':      image_url,
+            'imageType':      getattr(p, 'image_type', getattr(p, 'imageType', None)),
+            'badge':          getattr(p, 'badge', None),
+
+            # ── Multilingual fields ────────────────────────────────────────
+            'name_fr':           getattr(p, 'name_fr', None),
+            'name_ar':           getattr(p, 'name_ar', None),
+            'description_fr':    getattr(p, 'description_fr', None),
+            'description_ar':    getattr(p, 'description_ar', None),
+            'badge_fr':          getattr(p, 'badge_fr', None),
+            'badge_ar':          getattr(p, 'badge_ar', None),
+            # ──────────────────────────────────────────────────────────────
+
             'is_organic':     getattr(p, 'is_organic', False),
             'is_vegan':       getattr(p, 'is_vegan', False),
             'is_gluten_free': getattr(p, 'is_gluten_free', False),

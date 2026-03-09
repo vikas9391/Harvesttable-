@@ -7,15 +7,17 @@ export interface Product {
   original_price?: string
   category:        string
   origin:          string
-  imageType:       string
+  imageType?:      string        
   image_url?:      string | null
   badge?:          string
 
-  // ── Multilingual fields (optional — may be absent on older/static products) ─
+  // ── Multilingual fields ───────────────────────────────────────────────────
   name_fr?:        string
   name_ar?:        string
   description_fr?: string
   description_ar?: string
+  badge_fr?:       string
+  badge_ar?:       string
 
   is_organic:      boolean
   is_vegan:        boolean

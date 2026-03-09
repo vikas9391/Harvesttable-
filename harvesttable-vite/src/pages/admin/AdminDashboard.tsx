@@ -1,13 +1,16 @@
 // src/pages/admin/AdminDashboard.tsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PRODUCTS } from '../../data/products';
 import { apiFetch } from '../../lib/api';
 import { useLanguage } from '../../context/Languagecontext';
 
 interface Order {
   id: number; order_number: string; full_name: string;
   email: string; status: string; total: string; created_at: string;
+}
+
+interface ProductSummary {
+  id: number; name: string; category: string; stock_quantity: number;
 }
 
 const S: Record<string, { bg: string; text: string; border: string }> = {
@@ -84,12 +87,12 @@ const IconEmptyBox = () => (
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
   const { t, lang } = useLanguage();
-  const [orders, setOrders]   = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const lowStock = PRODUCTS.filter(p => p.stock_quantity <= 10);
+  const [orders, setOrders]     = useState<Order[]>([]);
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [loading, setLoading]   = useState(true);
 
+  // ── Fetch orders ────────────────────────────────────────────────────────────
   useEffect(() => {
-    // ✅ Fixed: was /api/orders/admin/ which used the correct @action path
     apiFetch('/api/orders/admin/')
       .then(r => r.ok ? r.json() : [])
       .then(data => setOrders(Array.isArray(data) ? data : data.results ?? []))
@@ -97,9 +100,18 @@ const AdminDashboard: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const totalRevenue  = orders.reduce((s, o) => s + parseFloat(o.total || '0'), 0);
-  const pendingCount  = orders.filter(o => o.status === 'pending').length;
-  const recentOrders  = orders.slice(0, 5);
+  // ── Fetch products from API (not static file) ───────────────────────────────
+  useEffect(() => {
+    apiFetch('/api/products/?page_size=200')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setProducts(Array.isArray(data) ? data : data.results ?? []))
+      .catch(() => {});
+  }, []);
+
+  const lowStock     = products.filter(p => p.stock_quantity <= 10);
+  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total || '0'), 0);
+  const pendingCount = orders.filter(o => o.status === 'pending').length;
+  const recentOrders = orders.slice(0, 5);
 
   const salesData = Array(12).fill(0);
   orders.forEach(o => { const m = new Date(o.created_at).getMonth(); salesData[m] += parseFloat(o.total || '0'); });
@@ -132,7 +144,7 @@ const AdminDashboard: React.FC = () => {
     {
       key: 'products',
       label: t('admin.dash.products'),
-      value: PRODUCTS.length.toString(),
+      value: products.length.toString(),
       sub: `${lowStock.length} ${t('admin.dash.lowStock')}`,
       good: lowStock.length === 0,
       icon: <IconShield />,
@@ -272,7 +284,6 @@ const AdminDashboard: React.FC = () => {
             <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 700, color: '#2a1a0e', margin: 0 }}>
               {t('admin.dash.stockTitle')}
             </h2>
-            {/* ✅ Link to /admin/products — make sure this route exists in your router */}
             <Link to="/admin/products" style={{ fontSize: 12, color: '#7a4a28', textDecoration: 'none', fontWeight: 600 }}>
               {t('admin.dash.viewAll')}
             </Link>
@@ -328,7 +339,6 @@ const AdminDashboard: React.FC = () => {
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 700, color: '#2a1a0e', margin: 0 }}>
             {t('admin.dash.recentOrders')}
           </h2>
-          {/* ✅ Link to /admin/orders */}
           <Link
             to="/admin/orders"
             style={{ fontSize: 12, color: '#7a4a28', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
@@ -375,7 +385,6 @@ const AdminDashboard: React.FC = () => {
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
                     >
                       <td style={{ padding: '14px 22px' }}>
-                        {/* ✅ UUID truncated to 8 chars */}
                         <span style={{ color: '#7a4a28', fontFamily: 'monospace', fontSize: 12, fontWeight: 600 }}>
                           #{String(order.order_number).slice(0, 8).toUpperCase()}
                         </span>

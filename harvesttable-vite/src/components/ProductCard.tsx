@@ -55,11 +55,11 @@ const ProductCard: React.FC<Props> = ({ product }) => {
     return product.name
   })()
 
-  // ── Multilingual badge ────────────────────────────────────────────────────
+  // ── Multilingual badge (no more `as any` casts) ───────────────────────────
   const displayBadge: string | null = (() => {
     if (!product.badge) return null
-    if (lang === 'fr' && (product as any).badge_fr?.trim()) return (product as any).badge_fr
-    if (lang === 'ar' && (product as any).badge_ar?.trim()) return (product as any).badge_ar
+    if (lang === 'fr' && product.badge_fr?.trim()) return product.badge_fr
+    if (lang === 'ar' && product.badge_ar?.trim()) return product.badge_ar
     return product.badge
   })()
 
