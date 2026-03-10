@@ -1,7 +1,7 @@
 // src/pages/CheckoutPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+import { useCart, CartGiftBox, GuestGiftBox } from '../context/CartContext';
 import { useLanguage } from '../context/Languagecontext';
 import { Product } from '../types';
 import ProductImage from '../components/ProductImage';
@@ -17,104 +17,45 @@ const C = {
   errorBg: 'rgba(176,64,64,0.08)', errorBorder: 'rgba(176,64,64,0.2)', errorText: '#b04040',
 };
 
-// ── Country data: [English (API value), French label, Arabic label] ────────────
-// The English value is always sent to the API. Labels change per language.
+// ── Country data ───────────────────────────────────────────────────────────────
 const COUNTRIES_RAW: [string, string, string][] = [
-  // Africa
-  ['Algeria',              'Algérie',              'الجزائر'],
-  ['Egypt',                'Égypte',               'مصر'],
-  ['Ethiopia',             'Éthiopie',             'إثيوبيا'],
-  ['Ghana',                'Ghana',                'غانا'],
-  ['Ivory Coast',          "Côte d'Ivoire",        'ساحل العاج'],
-  ['Kenya',                'Kenya',                'كينيا'],
-  ['Libya',                'Libye',                'ليبيا'],
-  ['Morocco',              'Maroc',                'المغرب'],
-  ['Nigeria',              'Nigéria',              'نيجيريا'],
-  ['Senegal',              'Sénégal',              'السنغال'],
-  ['South Africa',         'Afrique du Sud',       'جنوب أفريقيا'],
-  ['Sudan',                'Soudan',               'السودان'],
-  ['Tanzania',             'Tanzanie',             'تنزانيا'],
-  ['Tunisia',              'Tunisie',              'تونس'],
-  ['Uganda',               'Ouganda',              'أوغندا'],
-  // Americas
-  ['Argentina',            'Argentine',            'الأرجنتين'],
-  ['Brazil',               'Brésil',               'البرازيل'],
-  ['Canada',               'Canada',               'كندا'],
-  ['Chile',                'Chili',                'تشيلي'],
-  ['Colombia',             'Colombie',             'كولومبيا'],
-  ['Mexico',               'Mexique',              'المكسيك'],
-  ['Peru',                 'Pérou',                'بيرو'],
-  ['United States',        'États-Unis',           'الولايات المتحدة'],
-  ['Venezuela',            'Venezuela',            'فنزويلا'],
-  // Asia
-  ['Bangladesh',           'Bangladesh',           'بنغلاديش'],
-  ['China',                'Chine',                'الصين'],
-  ['India',                'Inde',                 'الهند'],
-  ['Indonesia',            'Indonésie',            'إندونيسيا'],
-  ['Iran',                 'Iran',                 'إيران'],
-  ['Iraq',                 'Irak',                 'العراق'],
-  ['Israel',               'Israël',               'إسرائيل'],
-  ['Japan',                'Japon',                'اليابان'],
-  ['Jordan',               'Jordanie',             'الأردن'],
-  ['Kazakhstan',           'Kazakhstan',           'كازاخستان'],
-  ['Kuwait',               'Koweït',               'الكويت'],
-  ['Lebanon',              'Liban',                'لبنان'],
-  ['Malaysia',             'Malaisie',             'ماليزيا'],
-  ['Oman',                 'Oman',                 'عمان'],
-  ['Pakistan',             'Pakistan',             'باكستان'],
-  ['Philippines',          'Philippines',          'الفلبين'],
-  ['Qatar',                'Qatar',                'قطر'],
-  ['Saudi Arabia',         'Arabie Saoudite',      'المملكة العربية السعودية'],
-  ['Singapore',            'Singapour',            'سنغافورة'],
-  ['South Korea',          'Corée du Sud',         'كوريا الجنوبية'],
-  ['Syria',                'Syrie',                'سوريا'],
-  ['Taiwan',               'Taïwan',               'تايوان'],
-  ['Thailand',             'Thaïlande',            'تايلاند'],
-  ['Turkey',               'Turquie',              'تركيا'],
-  ['United Arab Emirates', 'Émirats Arabes Unis',  'الإمارات العربية المتحدة'],
-  ['Vietnam',              'Vietnam',              'فيتنام'],
-  ['Yemen',                'Yémen',                'اليمن'],
-  // Europe
-  ['Austria',              'Autriche',             'النمسا'],
-  ['Belgium',              'Belgique',             'بلجيكا'],
-  ['Czech Republic',       'République Tchèque',   'جمهورية التشيك'],
-  ['Denmark',              'Danemark',             'الدنمارك'],
-  ['Finland',              'Finlande',             'فنلندا'],
-  ['France',               'France',               'فرنسا'],
-  ['Germany',              'Allemagne',            'ألمانيا'],
-  ['Greece',               'Grèce',                'اليونان'],
-  ['Hungary',              'Hongrie',              'المجر'],
-  ['Ireland',              'Irlande',              'أيرلندا'],
-  ['Italy',                'Italie',               'إيطاليا'],
-  ['Netherlands',          'Pays-Bas',             'هولندا'],
-  ['Norway',               'Norvège',              'النرويج'],
-  ['Poland',               'Pologne',              'بولندا'],
-  ['Portugal',             'Portugal',             'البرتغال'],
-  ['Romania',              'Roumanie',             'رومانيا'],
-  ['Russia',               'Russie',               'روسيا'],
-  ['Spain',                'Espagne',              'إسبانيا'],
-  ['Sweden',               'Suède',                'السويد'],
-  ['Switzerland',          'Suisse',               'سويسرا'],
-  ['Ukraine',              'Ukraine',              'أوكرانيا'],
-  ['United Kingdom',       'Royaume-Uni',          'المملكة المتحدة'],
-  // Oceania
-  ['Australia',            'Australie',            'أستراليا'],
-  ['New Zealand',          'Nouvelle-Zélande',     'نيوزيلندا'],
+  ['Algeria','Algérie','الجزائر'],['Egypt','Égypte','مصر'],['Ethiopia','Éthiopie','إثيوبيا'],
+  ['Ghana','Ghana','غانا'],['Ivory Coast',"Côte d'Ivoire",'ساحل العاج'],['Kenya','Kenya','كينيا'],
+  ['Libya','Libye','ليبيا'],['Morocco','Maroc','المغرب'],['Nigeria','Nigéria','نيجيريا'],
+  ['Senegal','Sénégal','السنغال'],['South Africa','Afrique du Sud','جنوب أفريقيا'],
+  ['Sudan','Soudan','السودان'],['Tanzania','Tanzanie','تنزانيا'],['Tunisia','Tunisie','تونس'],
+  ['Uganda','Ouganda','أوغندا'],['Argentina','Argentine','الأرجنتين'],['Brazil','Brésil','البرازيل'],
+  ['Canada','Canada','كندا'],['Chile','Chili','تشيلي'],['Colombia','Colombie','كولومبيا'],
+  ['Mexico','Mexique','المكسيك'],['Peru','Pérou','بيرو'],['United States','États-Unis','الولايات المتحدة'],
+  ['Venezuela','Venezuela','فنزويلا'],['Bangladesh','Bangladesh','بنغلاديش'],['China','Chine','الصين'],
+  ['India','Inde','الهند'],['Indonesia','Indonésie','إندونيسيا'],['Iran','Iran','إيران'],
+  ['Iraq','Irak','العراق'],['Israel','Israël','إسرائيل'],['Japan','Japon','اليابان'],
+  ['Jordan','Jordanie','الأردن'],['Kazakhstan','Kazakhstan','كازاخستان'],['Kuwait','Koweït','الكويت'],
+  ['Lebanon','Liban','لبنان'],['Malaysia','Malaisie','ماليزيا'],['Oman','Oman','عمان'],
+  ['Pakistan','Pakistan','باكستان'],['Philippines','Philippines','الفلبين'],['Qatar','Qatar','قطر'],
+  ['Saudi Arabia','Arabie Saoudite','المملكة العربية السعودية'],['Singapore','Singapour','سنغافورة'],
+  ['South Korea','Corée du Sud','كوريا الجنوبية'],['Syria','Syrie','سوريا'],['Taiwan','Taïwan','تايوان'],
+  ['Thailand','Thaïlande','تايلاند'],['Turkey','Turquie','تركيا'],
+  ['United Arab Emirates','Émirats Arabes Unis','الإمارات العربية المتحدة'],
+  ['Vietnam','Vietnam','فيتنام'],['Yemen','Yémen','اليمن'],['Austria','Autriche','النمسا'],
+  ['Belgium','Belgique','بلجيكا'],['Czech Republic','République Tchèque','جمهورية التشيك'],
+  ['Denmark','Danemark','الدنمارك'],['Finland','Finlande','فنلندا'],['France','France','فرنسا'],
+  ['Germany','Allemagne','ألمانيا'],['Greece','Grèce','اليونان'],['Hungary','Hongrie','المجر'],
+  ['Ireland','Irlande','أيرلندا'],['Italy','Italie','إيطاليا'],['Netherlands','Pays-Bas','هولندا'],
+  ['Norway','Norvège','النرويج'],['Poland','Pologne','بولندا'],['Portugal','Portugal','البرتغال'],
+  ['Romania','Roumanie','رومانيا'],['Russia','Russie','روسيا'],['Spain','Espagne','إسبانيا'],
+  ['Sweden','Suède','السويد'],['Switzerland','Suisse','سويسرا'],['Ukraine','Ukraine','أوكرانيا'],
+  ['United Kingdom','Royaume-Uni','المملكة المتحدة'],['Australia','Australie','أستراليا'],
+  ['New Zealand','Nouvelle-Zélande','نيوزيلندا'],
 ];
 
-/** Returns alphabetically-sorted country options with labels in the active language.
- *  `value` is always English (sent to the API). */
 function getCountries(lang: string): { value: string; label: string }[] {
   const locale = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr' : 'en';
   return COUNTRIES_RAW
-    .map(([en, fr, ar]) => ({
-      value: en,
-      label: lang === 'fr' ? fr : lang === 'ar' ? ar : en,
-    }))
+    .map(([en, fr, ar]) => ({ value: en, label: lang === 'fr' ? fr : lang === 'ar' ? ar : en }))
     .sort((a, b) => a.label.localeCompare(b.label, locale));
 }
 
-// ── Multilingual product-name helper ─────────────────────────────────────────
 function localName(product: Product, lang: string): string {
   if (lang === 'fr' && product.name_fr?.trim()) return product.name_fr;
   if (lang === 'ar' && product.name_ar?.trim()) return product.name_ar;
@@ -192,13 +133,33 @@ const InputField: React.FC<InputFieldProps> = ({
       {error && (
         <p style={{ fontSize: 11, color: C.errorText, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 3 }}>
           <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01"/>
+            <circle cx="12" cy="12" r="10"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01"/>
           </svg>
           {error}
         </p>
       )}
     </div>
+  );
+};
+
+// ─── GiftBoxIcon ──────────────────────────────────────────────────────────────
+const GiftBoxIcon = ({ size }: { size: string }) => {
+  if (size === 'small') return (
+    <svg width="16" height="16" fill="none" stroke={C.accent} strokeWidth="1.4" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+    </svg>
+  );
+  if (size === 'large') return (
+    <svg width="16" height="16" fill="none" stroke={C.accent} strokeWidth="1.4" viewBox="0 0 24 24">
+      <rect x="2" y="7" width="20" height="14" rx="2"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-4 0v2M8 7V5a2 2 0 014 0v2M2 12h20"/>
+    </svg>
+  );
+  return (
+    <svg width="16" height="16" fill="none" stroke={C.accent} strokeWidth="1.4" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v6"/>
+    </svg>
   );
 };
 
@@ -226,8 +187,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected,
       icon: (
         <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/>
-          <rect x="9" y="11" width="12" height="10" rx="2"/>
-          <circle cx="15" cy="16" r="2"/>
+          <rect x="9" y="11" width="12" height="10" rx="2"/><circle cx="15" cy="16" r="2"/>
         </svg>
       ),
     },
@@ -267,7 +227,10 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected,
 
 // ─── CheckoutPage ─────────────────────────────────────────────────────────────
 const CheckoutPage: React.FC = () => {
-  const { items, totalPrice, clearCart } = useCart();
+  const {
+    items, totalPrice, clearCart,
+    giftBoxes, guestGiftBoxes,
+  } = useCart();
   const { t, lang, isRTL } = useLanguage();
 
   const [step, setStep]               = useState<1 | 2 | 3>(1);
@@ -280,7 +243,6 @@ const CheckoutPage: React.FC = () => {
   const [form, setForm]               = useState(INITIAL_FORM);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
 
-  // Recomputed whenever `lang` changes — labels switch language, value stays English
   const countries = getCountries(lang);
 
   const setField = (k: string, v: string) => {
@@ -290,6 +252,12 @@ const CheckoutPage: React.FC = () => {
 
   useEffect(() => { const t2 = setTimeout(() => setVis(true), 60); return () => clearTimeout(t2); }, []);
 
+  // ── All gift boxes (server + guest) ──────────────────────────────────────
+  const allServerGiftBoxes: CartGiftBox[] = giftBoxes;
+  const allGuestGiftBoxes:  GuestGiftBox[] = guestGiftBoxes;
+  const hasAnyItems = items.length > 0 || allServerGiftBoxes.length > 0 || allGuestGiftBoxes.length > 0;
+
+  // ── Totals (mirrors CartContext logic) ────────────────────────────────────
   const shippingFree = totalPrice >= 50;
   const shippingCost = shippingFree ? 0 : 5.99;
   const grandTotal   = totalPrice + shippingCost;
@@ -309,19 +277,48 @@ const CheckoutPage: React.FC = () => {
     setFieldErrors({});
     setSubmitting(true);
     setSubmitError('');
+
+    // ── Build gift boxes payload for backend ──────────────────────────────
+    const giftBoxesPayload = [
+      // Server gift boxes (logged-in user)
+      ...allServerGiftBoxes.map(gb => ({
+        size:          gb.size,
+        packaging_fee: gb.packaging_fee,
+        quantity:      gb.quantity,
+        items_price:   gb.items_price,
+        products:      gb.gift_items.map(gi => ({
+          name:  gi.product.name,
+          price: gi.product.price,
+        })),
+      })),
+      // Guest gift boxes (just logged in / being merged)
+      ...allGuestGiftBoxes.map(gb => ({
+        size:          gb.size,
+        packaging_fee: String(gb.packaging_fee),
+        quantity:      gb.quantity,
+        items_price:   String(gb.products.reduce((s, p) => s + parseFloat(p.price), 0)),
+        products:      gb.products.map(p => ({
+          name:  p.name,
+          price: p.price,
+        })),
+      })),
+    ];
+
     const payload = {
-      email:         form.email,
-      full_name:     `${form.firstName} ${form.lastName}`.trim(),
-      phone:         form.phone,
-      address_line1: form.address,
-      address_line2: '',
-      city:          form.city,
-      state:         '',
-      postal_code:   form.postal,
-      country:       form.country,   // always English (e.g. "France")
-      notes: paymentMethod === 'cod' ? 'Payment method: Cash on Delivery' : 'Payment method: Card',
-      items: items.map(i => ({ product: i.product.id, quantity: i.quantity })),
+      email:            form.email,
+      full_name:        `${form.firstName} ${form.lastName}`.trim(),
+      phone:            form.phone,
+      address_line1:    form.address,
+      address_line2:    '',
+      city:             form.city,
+      state:            '',
+      postal_code:      form.postal,
+      country:          form.country,
+      notes:            paymentMethod === 'cod' ? 'Payment method: Cash on Delivery' : 'Payment method: Card',
+      items:            items.map(i => ({ product: i.product.id, quantity: i.quantity })),
+      gift_boxes_payload: giftBoxesPayload,
     };
+
     try {
       const res = await fetch('/api/orders/', {
         method: 'POST', credentials: 'include',
@@ -337,7 +334,7 @@ const CheckoutPage: React.FC = () => {
       clearCart();
       setPlaced(true);
     } catch (err: any) {
-      setSubmitError(err.message || 'Failed to place order. Please try again.');
+      setSubmitError(err.message || t('checkout.errorSubmit'));
     } finally {
       setSubmitting(false);
     }
@@ -364,12 +361,10 @@ const CheckoutPage: React.FC = () => {
   };
 
   const steps = [t('checkout.step1'), t('checkout.step2'), t('checkout.step3')];
-
-  // Helper: show the localised label for whatever country is stored in form.country
   const selectedCountryLabel = countries.find(c => c.value === form.country)?.label ?? form.country;
 
   // ── Empty cart ────────────────────────────────────────────────────────────
-  if (items.length === 0 && !placed) return (
+  if (!hasAnyItems && !placed) return (
     <div style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 72, height: 72, margin: '0 auto 24px', borderRadius: '50%', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -405,14 +400,13 @@ const CheckoutPage: React.FC = () => {
           <p style={{ color: C.muted, marginBottom: 8, animation: 'fadeUp 0.6s ease 0.4s both' }}>{t('checkout.thankYou')}</p>
           {orderNum && <p style={{ color: C.accent, fontFamily: 'monospace', fontSize: 13, marginBottom: 16, animation: 'fadeUp 0.6s ease 0.5s both' }}>#{orderNum}</p>}
           {paymentMethod === 'cod' && (
-            <div style={{ margin: '0 auto 20px', padding: '14px 18px', borderRadius: 12, backgroundColor: 'rgba(122,74,40,0.07)', border: `1px solid rgba(122,74,40,0.18)`, animation: 'fadeUp 0.6s ease 0.55s both', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
+            <div style={{ margin: '0 auto 20px', padding: '14px 18px', borderRadius: 12, backgroundColor: 'rgba(122,74,40,0.07)', border: `1px solid rgba(122,74,40,0.18)`, animation: 'fadeUp 0.6s ease 0.55s both', display: 'flex', alignItems: 'center', gap: 12, textAlign: isRTL ? 'right' : 'left', direction: isRTL ? 'rtl' : 'ltr' }}>
               <svg width="20" height="20" fill="none" stroke={C.accent} strokeWidth="1.7" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/>
-                <rect x="9" y="11" width="12" height="10" rx="2"/>
-                <circle cx="15" cy="16" r="2"/>
+                <rect x="9" y="11" width="12" height="10" rx="2"/><circle cx="15" cy="16" r="2"/>
               </svg>
               <p style={{ fontSize: 13, color: C.accent, margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
-                Please have <strong>${grandTotal.toFixed(2)}</strong> ready to pay upon delivery.
+                {t('checkout.codReadyAmount')} <strong>${grandTotal.toFixed(2)}</strong> {t('checkout.codReadyAmount2')}
               </p>
             </div>
           )}
@@ -494,41 +488,24 @@ const CheckoutPage: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                       <InputField label={t('checkout.city')}   fieldKey="city"   value={form.city}   error={fieldErrors.city}   isRTL={isRTL} onChange={setField} />
                       <InputField label={t('checkout.postal')} fieldKey="postal" value={form.postal} error={fieldErrors.postal} isRTL={isRTL} onChange={setField} />
-
-                      {/* ── Country dropdown — re-renders in active language ── */}
                       <div>
                         <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', color: fieldErrors.country ? C.errorText : C.label, marginBottom: 6, fontFamily: "'Jost', sans-serif", textTransform: 'uppercase' }}>
                           {t('checkout.country')} <span style={{ color: C.errorText }}>*</span>
                         </label>
-                        <select
-                          value={form.country}
-                          onChange={e => setField('country', e.target.value)}
-                          dir={isRTL ? 'rtl' : 'ltr'}
-                          style={{
-                            width: '100%', padding: '12px 16px', borderRadius: 8, fontSize: 13,
-                            outline: 'none', boxSizing: 'border-box',
-                            fontFamily: isRTL ? "'Noto Naskh Arabic', 'Segoe UI', serif" : "'Jost', sans-serif",
-                            backgroundColor: C.surface, color: C.heading, cursor: 'pointer',
-                            border: `1px solid ${fieldErrors.country ? C.borderErr : C.border}`,
-                            transition: 'border-color 0.2s', direction: isRTL ? 'rtl' : 'ltr',
-                          }}
+                        <select value={form.country} onChange={e => setField('country', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: isRTL ? "'Noto Naskh Arabic', 'Segoe UI', serif" : "'Jost', sans-serif", backgroundColor: C.surface, color: C.heading, cursor: 'pointer', border: `1px solid ${fieldErrors.country ? C.borderErr : C.border}`, transition: 'border-color 0.2s', direction: isRTL ? 'rtl' : 'ltr' }}
                           onFocus={e => { if (!fieldErrors.country) e.currentTarget.style.borderColor = C.borderHov; }}
-                          onBlur={e => { if (!fieldErrors.country) e.currentTarget.style.borderColor = C.border; }}
-                        >
+                          onBlur={e => { if (!fieldErrors.country) e.currentTarget.style.borderColor = C.border; }}>
                           <option value="">{t('checkout.select')}</option>
                           {countries.map(({ value, label: countryLabel }) => (
                             <option key={value} value={value}>{countryLabel}</option>
                           ))}
                         </select>
-                        {fieldErrors.country && (
-                          <p style={{ fontSize: 11, color: C.errorText, margin: '4px 0 0' }}>{fieldErrors.country}</p>
-                        )}
+                        {fieldErrors.country && <p style={{ fontSize: 11, color: C.errorText, margin: '4px 0 0' }}>{fieldErrors.country}</p>}
                       </div>
                     </div>
-
                     {Object.keys(fieldErrors).length > 0 && (
                       <div style={{ padding: '10px 14px', backgroundColor: C.errorBg, border: `1px solid ${C.errorBorder}`, borderRadius: 8, color: C.errorText, fontSize: 12 }}>
-                        Please fill in all required fields correctly.
+                        {t('checkout.errorFields')}
                       </div>
                     )}
                     <button onClick={handleContinueToReview} style={{ ...btnPrimary, marginTop: 8 }}
@@ -544,46 +521,87 @@ const CheckoutPage: React.FC = () => {
               {step === 2 && (
                 <div style={{ backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, animation: 'stepSlide 0.45s cubic-bezier(0.22,1,0.36,1) both', boxShadow: '0 2px 12px rgba(122,74,40,0.05)' }}>
                   <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: C.heading, marginBottom: 20, fontWeight: 600 }}>{t('checkout.reviewOrder')}</h2>
-                  <div style={{ marginBottom: 24 }}>
-                    {items.map((item, idx) => (
-                      <div key={item.product.id} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: idx < items.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                        <ProductImage
-                          type={item.product.category ?? item.product.imageType ?? 'spices'}
-                          name={item.product.name}
-                          imageUrl={item.product.image_url}
-                          className="w-12 h-12 rounded-lg flex-shrink-0"
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            color: C.heading, fontSize: 13, margin: '0 0 2px',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }),
-                          }}>
-                            {localName(item.product, lang)}
-                          </p>
-                          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
-                            {t('product.qty')}: {item.quantity}
-                          </p>
+
+                  {/* Regular items */}
+                  {items.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      {items.map((item, idx) => (
+                        <div key={item.product.id} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: idx < items.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                          <ProductImage type={item.product.category ?? item.product.imageType ?? 'spices'} name={item.product.name} imageUrl={item.product.image_url} className="w-12 h-12 rounded-lg flex-shrink-0" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ color: C.heading, fontSize: 13, margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }) }}>
+                              {localName(item.product, lang)}
+                            </p>
+                            <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>{t('product.qty')}: {item.quantity}</p>
+                          </div>
+                          <span style={{ color: C.accent, fontSize: 13, fontWeight: 700, flexShrink: 0, fontFamily: "'Cormorant Garamond', serif" }}>
+                            ${(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                          </span>
                         </div>
-                        <span style={{ color: C.accent, fontSize: 13, fontWeight: 700, flexShrink: 0, fontFamily: "'Cormorant Garamond', serif" }}>
-                          ${(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Server gift boxes */}
+                  {allServerGiftBoxes.map(gb => (
+                    <div key={`sgb-${gb.id}`} style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden', border: `1.5px solid rgba(122,74,40,0.2)` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', backgroundColor: 'rgba(122,74,40,0.05)', borderBottom: `1px solid rgba(122,74,40,0.1)` }}>
+                        <GiftBoxIcon size={gb.size} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          {gb.size} {t('gift.packaging') ?? 'Gift Box'} ×{gb.quantity}
+                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: C.accent, fontFamily: "'Cormorant Garamond', serif" }}>
+                          ${parseFloat(gb.total_price).toFixed(2)}
                         </span>
                       </div>
-                    ))}
-                  </div>
+                      {gb.gift_items.map((gi, idx) => (
+                        <div key={gi.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: idx < gb.gift_items.length - 1 ? `1px solid ${C.border}` : 'none', fontSize: 12, color: C.body }}>
+                          <span>{gi.product.name}</span>
+                          <span style={{ color: C.muted }}>${gi.product.price}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', fontSize: 11, color: C.muted, backgroundColor: 'rgba(122,74,40,0.02)' }}>
+                        <span>{t('gift.packaging')} fee</span>
+                        <span>+${parseFloat(gb.packaging_fee).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Guest gift boxes */}
+                  {allGuestGiftBoxes.map(gb => (
+                    <div key={`ggb-${gb.localId}`} style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden', border: `1.5px solid rgba(122,74,40,0.2)` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', backgroundColor: 'rgba(122,74,40,0.05)', borderBottom: `1px solid rgba(122,74,40,0.1)` }}>
+                        <GiftBoxIcon size={gb.size} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          {gb.size} {t('gift.packaging') ?? 'Gift Box'} ×{gb.quantity}
+                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: C.accent, fontFamily: "'Cormorant Garamond', serif" }}>
+                          ${((gb.products.reduce((s, p) => s + parseFloat(p.price), 0) + gb.packaging_fee) * gb.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                      {gb.products.map((p, idx) => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: idx < gb.products.length - 1 ? `1px solid ${C.border}` : 'none', fontSize: 12, color: C.body }}>
+                          <span>{p.name}</span>
+                          <span style={{ color: C.muted }}>${p.price}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', fontSize: 11, color: C.muted, backgroundColor: 'rgba(122,74,40,0.02)' }}>
+                        <span>{t('gift.packaging')} fee</span>
+                        <span>+${gb.packaging_fee.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+
                   <div style={{ backgroundColor: '#f7f2ea', border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 20, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
-                      <span>{t('checkout.shipTo')}:</span>
-                      <span style={{ color: C.body }}>{form.firstName} {form.lastName}</span>
+                      <span>{t('checkout.shipTo')}:</span><span style={{ color: C.body }}>{form.firstName} {form.lastName}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
-                      <span>{t('checkout.email')}:</span>
-                      <span style={{ color: C.body }}>{form.email}</span>
+                      <span>{t('checkout.email')}:</span><span style={{ color: C.body }}>{form.email}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
                       <span>{t('checkout.addressLabel')}:</span>
                       <span style={{ color: C.body, textAlign: 'right', maxWidth: '60%' }}>
-                        {/* Show localised country name in the review step */}
                         {form.address}, {form.city}, {form.postal}, {selectedCountryLabel}
                       </span>
                     </div>
@@ -620,7 +638,7 @@ const CheckoutPage: React.FC = () => {
                       </div>
                       {Object.keys(fieldErrors).length > 0 && (
                         <div style={{ marginTop: 12, padding: '10px 14px', backgroundColor: C.errorBg, border: `1px solid ${C.errorBorder}`, borderRadius: 8, color: C.errorText, fontSize: 12 }}>
-                          Please fill in all payment fields correctly.
+                          {t('checkout.errorPayment')}
                         </div>
                       )}
                     </>
@@ -628,31 +646,23 @@ const CheckoutPage: React.FC = () => {
 
                   {paymentMethod === 'cod' && (
                     <div style={{ padding: 20, backgroundColor: 'rgba(122,74,40,0.05)', border: `1px solid rgba(122,74,40,0.15)`, borderRadius: 12 }}>
-                      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', direction: isRTL ? 'rtl' : 'ltr' }}>
                         <div style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(122,74,40,0.10)', border: `1px solid rgba(122,74,40,0.18)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <svg width="22" height="22" fill="none" stroke={C.accent} strokeWidth="1.7" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/>
-                            <rect x="9" y="11" width="12" height="10" rx="2"/>
-                            <circle cx="15" cy="16" r="2"/>
+                            <rect x="9" y="11" width="12" height="10" rx="2"/><circle cx="15" cy="16" r="2"/>
                           </svg>
                         </div>
                         <div style={{ flex: 1 }}>
                           <p style={{ fontSize: 14, fontWeight: 600, color: C.heading, margin: '0 0 6px' }}>{t('checkout.payCOD')}</p>
                           <p style={{ fontSize: 13, color: C.muted, margin: '0 0 14px', lineHeight: 1.7 }}>
-                            No payment needed right now. Our delivery agent will collect{' '}
-                            <strong style={{ color: C.accent }}>${grandTotal.toFixed(2)}</strong> when your order arrives.
+                            {t('checkout.codDesc')} <strong style={{ color: C.accent }}>${grandTotal.toFixed(2)}</strong>
                           </p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {[
-                              'Have the exact amount ready if possible',
-                              'A receipt will be provided upon delivery',
-                              'Order can be cancelled before dispatch',
-                            ].map((tip, i) => (
+                            {[t('checkout.codTip1'), t('checkout.codTip2'), t('checkout.codTip3')].map((tip, i) => (
                               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: C.successLight, border: '1px solid rgba(58,96,40,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                  <svg width="10" height="10" fill="none" stroke={C.success} strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                                  </svg>
+                                  <svg width="10" height="10" fill="none" stroke={C.success} strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                                 <span style={{ fontSize: 12, color: C.body }}>{tip}</span>
                               </div>
@@ -674,12 +684,13 @@ const CheckoutPage: React.FC = () => {
                       ← {t('checkout.backBtn')}
                     </button>
                     <button onClick={handlePlaceOrder} disabled={submitting} style={{ ...btnPrimary, flex: 1 }}>
-                      {submitting
-                        ? <><div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Placing Order…</>
-                        : paymentMethod === 'cod'
-                          ? <>Place Order · Pay ${grandTotal.toFixed(2)} on Delivery</>
-                          : <>{t('checkout.placeOrder')} · ${grandTotal.toFixed(2)}</>
-                      }
+                      {submitting ? (
+                        <><div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />{t('checkout.placing')}</>
+                      ) : paymentMethod === 'cod' ? (
+                        <>{t('checkout.placeOrderCOD')} · ${grandTotal.toFixed(2)}</>
+                      ) : (
+                        <>{t('checkout.placeOrder')} · ${grandTotal.toFixed(2)}</>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -690,18 +701,46 @@ const CheckoutPage: React.FC = () => {
             <div style={{ ...fade(0.3), backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, position: 'sticky', top: 88, boxShadow: '0 2px 12px rgba(122,74,40,0.05)' }}>
               <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: C.heading, marginBottom: 20, fontWeight: 600 }}>{t('checkout.orderSummary')}</h3>
               <div style={{ marginBottom: 16 }}>
+
+                {/* Regular items */}
                 {items.map(i => (
                   <div key={i.product.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8, color: C.muted }}>
-                    <span style={{
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8,
-                      ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }),
-                    }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8, ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }) }}>
                       {localName(i.product, lang)} ×{i.quantity}
                     </span>
                     <span style={{ flexShrink: 0 }}>${(parseFloat(i.product.price) * i.quantity).toFixed(2)}</span>
                   </div>
                 ))}
+
+                {/* Server gift boxes */}
+                {allServerGiftBoxes.map(gb => (
+                  <div key={`sgb-${gb.id}`} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.accent }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <GiftBoxIcon size={gb.size} />
+                        {gb.size} box ×{gb.quantity}
+                      </span>
+                      <span style={{ flexShrink: 0, fontWeight: 600 }}>${parseFloat(gb.total_price).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Guest gift boxes */}
+                {allGuestGiftBoxes.map(gb => (
+                  <div key={`ggb-${gb.localId}`} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.accent }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <GiftBoxIcon size={gb.size} />
+                        {gb.size} box ×{gb.quantity}
+                      </span>
+                      <span style={{ flexShrink: 0, fontWeight: 600 }}>
+                        ${((gb.products.reduce((s, p) => s + parseFloat(p.price), 0) + gb.packaging_fee) * gb.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
+
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.muted, marginBottom: 8 }}>
                   <span>{t('checkout.subtotal')}</span><span>${totalPrice.toFixed(2)}</span>
@@ -726,6 +765,7 @@ const CheckoutPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>

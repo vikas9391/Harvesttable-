@@ -643,6 +643,17 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.payCardBadge':    'Card',
 'admin.cust.totalOrders':    'Total Orders',
 'admin.cust.col.phone':      'Phone',
+'nav.brandName': 'HarvestTable',
+'checkout.errorFields':      'Please fill in all required fields correctly.',
+'checkout.errorPayment':     'Please fill in all payment fields correctly.',
+'checkout.placing':          'Placing Order…',
+'checkout.placeOrderCOD':    'Place Order · Pay on Delivery',
+'checkout.codDesc':          'No payment needed right now. Our delivery agent will collect the amount when your order arrives.',
+'checkout.codTip1':          'Have the exact amount ready if possible',
+'checkout.codTip2':          'A receipt will be provided upon delivery',
+'checkout.codTip3':          'Order can be cancelled before dispatch',
+'checkout.codReadyAmount':   'Please have',
+'checkout.codReadyAmount2':  'ready to pay upon delivery.',
 
 },
 
@@ -1236,12 +1247,23 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.payCardBadge':    'Carte',
 'admin.cust.totalOrders':    'Total Commandes',
 'admin.cust.col.phone':      'Téléphone',
-
+'nav.brandName': 'HarvestTable',
+'checkout.errorFields':      'Veuillez remplir tous les champs obligatoires correctement.',
+'checkout.errorPayment':     'Veuillez remplir tous les champs de paiement correctement.',
+'checkout.placing':          'Commande en cours…',
+'checkout.placeOrderCOD':    'Commander · Payer à la livraison',
+'checkout.codDesc':          'Aucun paiement requis maintenant. Notre livreur collectera le montant à la livraison.',
+'checkout.codTip1':          'Avoir le montant exact si possible',
+'checkout.codTip2':          'Un reçu sera fourni à la livraison',
+'checkout.codTip3':          'La commande peut être annulée avant expédition',
+'checkout.codReadyAmount':   'Veuillez préparer',
+'checkout.codReadyAmount2':  'à payer à la livraison.',
 },
 
   // ════════════════════════════════════════════════════════════════════════════
   ar: {
     // ── Navbar ──────────────────────────────────────────────────────────────
+    'nav.brandName': 'هارفيست تيبل',
     'nav.home': 'الرئيسية', 'nav.shop': 'المتجر', 'nav.giftBuilder': 'صمّم هديتك',
     'nav.ourStory': 'قصتنا', 'nav.signIn': 'تسجيل الدخول', 'nav.getStarted': 'ابدأ الآن',
     'nav.myProfile': 'ملفي الشخصي', 'nav.myOrders': 'طلباتي', 'nav.wishlist': 'المفضلة',
@@ -1350,7 +1372,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'home.featured.label': 'مختارة لك', 'home.featured.title': 'المجموعة المميزة',
     'home.featured.desc': 'منتجاتنا الأكثر حباً — مختارة يدوياً من فريقنا.',
     'home.featured.exploreAll': 'استكشف الكل',
-    'home.promise.label': 'لماذا نحن', 'home.promise.title': 'وعد HarvestTable',
+    'home.promise.label': 'لماذا نحن', 'home.promise.title': 'وعد هارفيست تيبل',
     'home.promise.organic': 'معتمد عضوياً',
     'home.promise.organicDesc': 'كل منتج يستوفي معايير عضوية صارمة.',
     'home.promise.fair': 'تجارة عادلة',
@@ -1364,7 +1386,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'home.gift.cta': 'ابدأ البناء',
     'about.badge': 'قصتنا',
     'about.hero.title': 'من حدائق المغرب إلى مائدتك',
-    'about.hero.desc': 'وُلدت HarvestTable من حب الثقافة المغربية.',
+    'about.hero.desc': 'وُلدت هارفيست تيبل من حب الثقافة المغربية.',
     'about.hero.est': 'تأسست 2018 · مباشرة من المزارعين الحرفيين المغاربة',
     'about.stat1': 'مزارع حرفي', 'about.stat2': 'منطقة مغربية',
     'about.stat3': 'رحلات سنوية', 'about.stat4': 'معتمد عضوياً',
@@ -1826,6 +1848,16 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.payCardBadge':    'بطاقة',
 'admin.cust.totalOrders':    'إجمالي الطلبات',
 'admin.cust.col.phone':      'الهاتف',
+'checkout.errorFields':      'يرجى ملء جميع الحقول المطلوبة بشكل صحيح.',
+'checkout.errorPayment':     'يرجى ملء جميع حقول الدفع بشكل صحيح.',
+'checkout.placing':          'جارٍ تقديم الطلب…',
+'checkout.placeOrderCOD':    'تأكيد الطلب · الدفع عند الاستلام',
+'checkout.codDesc':          'لا حاجة للدفع الآن. سيقوم مندوب التوصيل بتحصيل المبلغ عند الاستلام.',
+'checkout.codTip1':          'احرص على توفر المبلغ بالضبط إن أمكن',
+'checkout.codTip2':          'سيتم تسليم إيصال عند التوصيل',
+'checkout.codTip3':          'يمكن إلغاء الطلب قبل الشحن',
+'checkout.codReadyAmount':   'يرجى تجهيز',
+'checkout.codReadyAmount2':  'للدفع عند الاستلام.',
 },
 }
 
@@ -1864,7 +1896,7 @@ export const LangProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const titleMap: Record<LangCode, string> = {
       en: 'HarvestTable - Moroccan Artisan Herbs & Teas',
       fr: 'HarvestTable - Herbes & Thés Artisanaux Marocains',
-      ar: 'HarvestTable - أعشاب وشاي مغربي أصيل',
+      ar: 'هارفيست تيبل - أعشاب وشاي مغربي أصيل',
     }
     const descMap: Record<LangCode, string> = {
       en: 'HarvestTable - Artisan Moroccan Herbs, Teas & Spices',

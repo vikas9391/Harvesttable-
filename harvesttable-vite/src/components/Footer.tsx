@@ -90,7 +90,7 @@ const Footer: React.FC = () => {
           {/* Brand column */}
           <div className="col-span-2" style={fadeUp(0.1)}>
             <span className="font-serif text-2xl font-bold" style={{ color: '#7a4a28' }}>
-              HarvestTable
+                {t('nav.brandName')}
             </span>
             <p className="text-[9px] tracking-[0.28em] uppercase mt-1 mb-5" style={{ color: '#c0a888' }}>
               {t('nav.brandSub')}

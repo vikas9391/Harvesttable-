@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import ProductImage from '../components/ProductImage';
-import { useCart } from '../context/CartContext';
+import { useCart, GiftBoxSize, GiftBoxProduct } from '../context/CartContext';
 import { useLanguage } from '../context/Languagecontext';
 
 const C = {
@@ -31,12 +31,11 @@ const BoxIconLarge = () => (
 );
 
 const GIFT_SIZES = [
-  { labelKey: 'gift.small',  items: 3, price: 5,  Icon: BoxIconSmall,  descKey: 'gift.smallDesc'  },
-  { labelKey: 'gift.medium', items: 5, price: 8,  Icon: BoxIconMedium, descKey: 'gift.mediumDesc' },
-  { labelKey: 'gift.large',  items: 8, price: 12, Icon: BoxIconLarge,  descKey: 'gift.largeDesc'  },
+  { labelKey: 'gift.small',  size: 'small'  as GiftBoxSize, items: 3, price: 5,  Icon: BoxIconSmall,  descKey: 'gift.smallDesc'  },
+  { labelKey: 'gift.medium', size: 'medium' as GiftBoxSize, items: 5, price: 8,  Icon: BoxIconMedium, descKey: 'gift.mediumDesc' },
+  { labelKey: 'gift.large',  size: 'large'  as GiftBoxSize, items: 8, price: 12, Icon: BoxIconLarge,  descKey: 'gift.largeDesc'  },
 ];
 
-// ── Helper: pick the right name for the current language ──────────────────────
 const localName = (product: Product, lang: string): string => {
   if (lang === 'fr' && product.name_fr?.trim()) return product.name_fr;
   if (lang === 'ar' && product.name_ar?.trim()) return product.name_ar;
@@ -44,18 +43,18 @@ const localName = (product: Product, lang: string): string => {
 };
 
 const GiftBuilderPage: React.FC = () => {
-  const { addToCart }          = useCart();
-  const { t, isRTL, lang }     = useLanguage();   // ← lang added
+  const { addGiftBox, addGuestGiftBox, isLoggedIn } = useCart() as any;
+  const { t, isRTL, lang } = useLanguage();
 
   const [selectedSize, setSelectedSize]   = useState(1);
   const [selectedItems, setSelectedItems] = useState<Product[]>([]);
   const [filterCat, setFilterCat]         = useState('');
   const [step, setStep]                   = useState<1 | 2 | 3>(1);
+  const [adding, setAdding]               = useState(false);
   const [added, setAdded]                 = useState(false);
   const [vis, setVis]                     = useState(false);
   const [products, setProducts]           = useState<Product[]>([]);
 
-  // ── Fetch live products from API ──────────────────────────────────────────
   useEffect(() => {
     fetch('/api/products/?page_size=200')
       .then(r => r.json())
@@ -68,8 +67,9 @@ const GiftBuilderPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const maxItems = GIFT_SIZES[selectedSize].items;
-  const boxPrice = GIFT_SIZES[selectedSize].price;
+  const currentSize = GIFT_SIZES[selectedSize];
+  const maxItems    = currentSize.items;
+  const boxPrice    = currentSize.price;
 
   const available = products.filter(
     p => !p.category.includes('gift') && (!filterCat || p.category === filterCat)
@@ -86,11 +86,44 @@ const GiftBuilderPage: React.FC = () => {
   const totalPrice = selectedItems.reduce((sum, p) => sum + parseFloat(p.price), 0) + boxPrice;
   const pct        = (selectedItems.length / maxItems) * 100;
 
-  const handleAddToCart = () => {
-    selectedItems.forEach(p => addToCart(p));
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
-    setStep(3);
+  // ── Add to cart as a single gift box bundle ──────────────────────────────
+  const handleAddToCart = async () => {
+    if (selectedItems.length === 0 || adding) return;
+    setAdding(true);
+
+    const giftProducts: GiftBoxProduct[] = selectedItems.map(p => ({
+      id:        p.id,
+      name:      p.name,
+      slug:      p.slug,
+      price:     p.price,
+      category:  p.category,
+      image_url: p.image_url ?? undefined,  // convert null → undefined
+      imageType: p.imageType,
+      name_fr:   p.name_fr,
+      name_ar:   p.name_ar,
+    }));
+
+    try {
+      if (isLoggedIn) {
+        await addGiftBox(currentSize.size, giftProducts, 1);
+      } else {
+        addGuestGiftBox(currentSize.size, giftProducts, 1);
+      }
+      setAdded(true);
+      setTimeout(() => {
+        setAdded(false);
+        // Reset for another box — stay on step 3 with a fresh CTA
+      }, 2200);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // ── Reset builder so user can add another gift box ───────────────────────
+  const handleAddAnother = () => {
+    setSelectedItems([]);
+    setSelectedSize(1);
+    setStep(1);
   };
 
   const f = (d: number): React.CSSProperties => ({
@@ -102,7 +135,7 @@ const GiftBuilderPage: React.FC = () => {
   const noise = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
   const stepLabels             = [t('gift.step1'), t('gift.step2'), t('gift.step3')];
-  const { Icon: SelectedIcon } = GIFT_SIZES[selectedSize];
+  const { Icon: SelectedIcon } = currentSize;
 
   return (
     <>
@@ -110,6 +143,7 @@ const GiftBuilderPage: React.FC = () => {
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600&family=Jost:wght@200;300;400;500;600&display=swap');
         @keyframes stepIn  { from { opacity:0; transform:translateY(32px) } to { opacity:1; transform:translateY(0) } }
         @keyframes shimmer { 0%   { background-position:-200% center }     100% { background-position:200% center } }
+        @keyframes successPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.04) } }
       `}</style>
 
       <div style={{ backgroundColor: C.bg, fontFamily: "'Jost', sans-serif", direction: isRTL ? 'rtl' : 'ltr' }} className="min-h-screen pt-[68px]">
@@ -320,7 +354,6 @@ const GiftBuilderPage: React.FC = () => {
                           )}
                         </div>
                         <div style={{ padding: '10px', backgroundColor: C.surface }}>
-                          {/* ── Multilingual product name ── */}
                           <p style={{
                             fontSize: 12, fontWeight: 600, color: C.heading, margin: '0 0 2px',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -380,7 +413,7 @@ const GiftBuilderPage: React.FC = () => {
                   <SelectedIcon />
                 </div>
                 <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 700, color: C.heading, marginBottom: 4 }}>
-                  {t(GIFT_SIZES[selectedSize].labelKey)}
+                  {t(currentSize.labelKey)}
                 </h2>
                 <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
                   {selectedItems.length} {t('gift.items')} {t('gift.selected')}
@@ -404,7 +437,6 @@ const GiftBuilderPage: React.FC = () => {
                           imageUrl={item.image_url}
                           className="w-8 h-8 rounded-lg flex-shrink-0"
                         />
-                        {/* ── Multilingual name in review list ── */}
                         <span style={{
                           fontSize: 13, color: C.body,
                           ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif" }),
@@ -415,11 +447,26 @@ const GiftBuilderPage: React.FC = () => {
                       <span style={{ fontSize: 13, fontWeight: 700, color: C.price }}>${item.price}</span>
                     </div>
                   ))}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', fontSize: 13, color: C.muted }}>
-                    <span>{t('gift.packaging')} ({t(GIFT_SIZES[selectedSize].labelKey)})</span>
-                    <span>+${boxPrice}</span>
+
+                  {/* Packaging line */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px',
+                    fontSize: 13, color: C.muted,
+                    backgroundColor: 'rgba(122,74,40,0.03)',
+                    borderTop: `1px dashed ${C.border}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(122,74,40,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <SelectedIcon />
+                      </div>
+                      <span style={{ color: C.body, fontSize: 12 }}>
+                        {t('gift.packaging')} <span style={{ color: C.accent, fontWeight: 600 }}>({t(currentSize.labelKey)})</span>
+                      </span>
+                    </div>
+                    <span style={{ fontWeight: 700, color: C.accent }}>+${boxPrice}</span>
                   </div>
                 </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: `1px solid ${C.border}`, fontWeight: 700 }}>
                   <span style={{ color: C.heading }}>{t('gift.total')}</span>
                   <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: C.price }}>${totalPrice.toFixed(2)}</span>
@@ -427,25 +474,37 @@ const GiftBuilderPage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <button onClick={handleAddToCart} style={{
-                  width: '100%', padding: '14px 0', borderRadius: 2, fontWeight: 600, fontSize: 11,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                  letterSpacing: '0.12em', textTransform: 'uppercase',
-                  transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-                  ...(added
-                    ? { backgroundColor: C.greenBg, color: C.green, border: `1px solid rgba(58,96,40,0.25)` }
-                    : { backgroundColor: C.accent,  color: '#fff',   boxShadow: '0 4px 20px rgba(122,74,40,0.28)', border: 'none' }
-                  ),
-                }}
-                  onMouseEnter={e => { if (!added) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={e => {              (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
+                {/* ── Primary CTA ─────────────────────────────────────────── */}
+                <button
+                  onClick={handleAddToCart}
+                  disabled={adding || added}
+                  style={{
+                    width: '100%', padding: '14px 0', borderRadius: 2, fontWeight: 600, fontSize: 11,
+                    cursor: adding || added ? 'default' : 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                    transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                    ...(added
+                      ? { backgroundColor: C.greenBg, color: C.green, border: `1px solid rgba(58,96,40,0.25)`, animation: 'successPulse 0.4s ease' }
+                      : adding
+                        ? { backgroundColor: 'rgba(122,74,40,0.5)', color: '#fff', border: 'none' }
+                        : { backgroundColor: C.accent, color: '#fff', boxShadow: '0 4px 20px rgba(122,74,40,0.28)', border: 'none' }
+                    ),
+                  }}
+                  onMouseEnter={e => { if (!adding && !added) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => {                          (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+                >
                   {added ? (
                     <>
                       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                       {t('gift.addedToCart')}
+                    </>
+                  ) : adding ? (
+                    <>
+                      <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
+                      {t('gift.adding') ?? 'Adding…'}
                     </>
                   ) : (
                     <>
@@ -456,6 +515,24 @@ const GiftBuilderPage: React.FC = () => {
                     </>
                   )}
                 </button>
+
+                {/* ── Add another box (shows after first add) ─────────────── */}
+                {added && (
+                  <button
+                    onClick={handleAddAnother}
+                    style={{
+                      width: '100%', padding: '12px 0', fontSize: 11, letterSpacing: '0.10em',
+                      textTransform: 'uppercase', borderRadius: 2,
+                      border: `1px solid ${C.accent}`, color: C.accent, background: 'none',
+                      cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                      transition: 'all 0.2s',
+                      animation: 'stepIn 0.4s ease both',
+                    }}
+                  >
+                    + {t('gift.addAnother') ?? 'Add Another Gift Box'}
+                  </button>
+                )}
+
                 <button onClick={() => setStep(2)} style={{
                   width: '100%', padding: '12px 0', fontSize: 11, letterSpacing: '0.10em',
                   textTransform: 'uppercase', borderRadius: 2,
@@ -471,6 +548,8 @@ const GiftBuilderPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </>
   );
 };

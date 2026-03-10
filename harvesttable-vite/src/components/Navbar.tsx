@@ -612,7 +612,7 @@ const Navbar: React.FC = () => {
               style={{ animation: mounted ? 'navLogoIn 0.6s cubic-bezier(0.22,1,0.36,1) both' : 'none', textDecoration: 'none' }}
             >
               <span style={{ fontFamily: 'Georgia, serif', fontSize: '1.45rem', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.01em', color: C.logoBg }}>
-                HarvestTable
+                  {t('nav.brandName')}
               </span>
               <span className="text-[9px] font-semibold tracking-[0.2em] uppercase hidden sm:block" style={{ color: C.logoSub }}>
                 {t('nav.brandSub')}
