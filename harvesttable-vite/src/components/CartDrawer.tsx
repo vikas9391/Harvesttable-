@@ -43,7 +43,6 @@ const keyframes = `
 }
 `
 
-// ── Helper: pick the right name for the current language ─────────────────────
 const localName = (product: Product, lang: string): string => {
   if (lang === 'fr' && product.name_fr?.trim()) return product.name_fr
   if (lang === 'ar' && product.name_ar?.trim()) return product.name_ar
@@ -51,12 +50,28 @@ const localName = (product: Product, lang: string): string => {
 }
 
 const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { items, removeFromCart, updateQuantity, totalPrice, clearCart } = useCart()
-  const { t, isRTL, lang } = useLanguage()   // ← lang added
-  const shippingFree = totalPrice >= 50
-  const shipping     = shippingFree ? 0 : 5.99
-  const pct          = Math.min((totalPrice / 50) * 100, 100)
-  const itemCount    = items.reduce((s, i) => s + i.quantity, 0)
+  const {
+    items,
+    removeFromCart,
+    updateQuantity,
+    totalPrice,
+    clearCart,
+    // ── Live values from admin_panel backend via CartContext ──
+    shippingCost,
+    isFreeShipping,
+    amountToFree,
+    shippingConfig,
+  } = useCart()
+
+  const { t, isRTL, lang } = useLanguage()
+
+  // Progress toward free shipping (0–100), driven by live threshold
+  const pct = Math.min(
+    (totalPrice / shippingConfig.freeShippingThreshold) * 100,
+    100
+  )
+
+  const itemCount = items.reduce((s, i) => s + i.quantity, 0)
 
   const [animKey, setAnimKey] = useState(0)
   useEffect(() => {
@@ -140,17 +155,17 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Shipping progress bar */}
+        {/* Shipping progress bar — all values from live context */}
         {items.length > 0 && (
           <div
             className="px-5 py-3"
             style={{
-              backgroundColor: shippingFree ? T.greenBg : 'rgba(122,74,40,0.03)',
+              backgroundColor: isFreeShipping ? T.greenBg : 'rgba(122,74,40,0.03)',
               borderBottom: `1px solid ${T.border}`,
               animation: 'shippingBarIn 0.4s cubic-bezier(0.22,1,0.36,1) 0.15s both',
             }}
           >
-            {shippingFree ? (
+            {isFreeShipping ? (
               <div className="flex items-center justify-center gap-2">
                 <svg width="14" height="14" fill="none" stroke={T.green} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
@@ -162,7 +177,7 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             ) : (
               <>
                 <p className="text-xs mb-1.5" style={{ color: T.body }}>
-                  {t('product.freeShippingMore', { amount: (50 - totalPrice).toFixed(2) })}
+                  {t('product.freeShippingMore', { amount: amountToFree.toFixed(2) })}
                 </p>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: T.progressBg }}>
                   <div
@@ -230,7 +245,6 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
                 </Link>
                 <div className="flex-1 min-w-0">
                   <Link to={`/products/${item.product.slug}`} onClick={onClose}>
-                    {/* ── Multilingual product name ── */}
                     <p
                       className="text-sm font-semibold truncate transition-colors"
                       style={{
@@ -324,15 +338,15 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
               </div>
               <div className="flex justify-between" style={{ color: T.muted }}>
                 <span>{t('checkout.shipping')}</span>
-                <span style={{ color: shippingFree ? T.green : T.muted }}>
-                  {shippingFree ? (
+                <span style={{ color: isFreeShipping ? T.green : T.muted }}>
+                  {isFreeShipping ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
                       </svg>
                       {t('checkout.shippingFree')}
                     </span>
-                  ) : `$${shipping.toFixed(2)}`}
+                  ) : `$${shippingCost.toFixed(2)}`}
                 </span>
               </div>
               <div
@@ -340,7 +354,9 @@ const CartDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
                 style={{ borderTop: `1px solid ${T.border}`, color: T.heading }}
               >
                 <span>{t('checkout.grandTotal')}</span>
-                <span style={{ color: T.price }}>${(totalPrice + shipping).toFixed(2)}</span>
+                <span style={{ color: T.price }}>
+                  ${(totalPrice + shippingCost).toFixed(2)}
+                </span>
               </div>
             </div>
 

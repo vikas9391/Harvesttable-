@@ -641,7 +641,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.payCOD':          'Cash on Delivery',
 'checkout.payCODDesc':      'Pay when your order arrives',
 'checkout.payCardBadge':    'Card',
-
+'admin.cust.totalOrders':    'Total Orders',
+'admin.cust.col.phone':      'Phone',
 
 },
 
@@ -1233,8 +1234,9 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.payCOD':          'Paiement à la Livraison',
 'checkout.payCODDesc':      'Payez à la réception de votre commande',
 'checkout.payCardBadge':    'Carte',
+'admin.cust.totalOrders':    'Total Commandes',
+'admin.cust.col.phone':      'Téléphone',
 
-// Arabic
 },
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1822,6 +1824,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.payCOD':          'الدفع عند الاستلام',
 'checkout.payCODDesc':      'ادفع عند وصول طلبك',
 'checkout.payCardBadge':    'بطاقة',
+'admin.cust.totalOrders':    'إجمالي الطلبات',
+'admin.cust.col.phone':      'الهاتف',
 },
 }
 

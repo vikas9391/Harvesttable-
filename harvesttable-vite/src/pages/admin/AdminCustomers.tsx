@@ -20,30 +20,29 @@ const card: React.CSSProperties = {
 };
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
-const IconUsers    = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-const IconRevenue  = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-const IconAvg      = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-const IconOrders   = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-const IconSearch   = () => <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#c8a882', width: 16, height: 16 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-const IconEmpty    = () => <svg width="20" height="20" fill="none" stroke="#a08878" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+const IconUsers   = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+const IconRevenue = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+const IconAvg     = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+const IconOrders  = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} fill="none" stroke="#9a6840" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+const IconSearch  = () => <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#c8a882', width: 16, height: 16 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+const IconEmpty   = () => <svg width="20" height="20" fill="none" stroke="#a08878" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
 
 // ─── AdminCustomers ──────────────────────────────────────────────────────────
 const AdminCustomers: React.FC = () => {
   const { t } = useLanguage();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [allCustomers, setAllCustomers] = useState<Customer[]>([]); // unfiltered, for stats
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [search, setSearch]       = useState('');
-  const [sortBy, setSortBy]       = useState('name');
+  const [customers,    setCustomers]    = useState<Customer[]>([]);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
+  const [search,       setSearch]       = useState('');
+  const [sortBy,       setSortBy]       = useState('name');
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch customers — search & sort delegated to backend
   const fetchCustomers = useCallback(async (q: string, sort: string) => {
     setLoading(true); setError('');
     try {
       const params = new URLSearchParams();
-      if (q)    params.set('search', q);
+      if (q)    params.set('search',   q);
       if (sort) params.set('ordering', sort);
       const res = await apiFetch(`/api/users/admin/customers/?${params.toString()}`);
       if (!res.ok) { setError('Failed to load customers.'); return; }
@@ -56,7 +55,7 @@ const AdminCustomers: React.FC = () => {
     }
   }, []);
 
-  // Load all customers once (no filters) for header stats
+  // Full unfiltered list for header stats
   useEffect(() => {
     apiFetch('/api/users/admin/customers/')
       .then(r => r.ok ? r.json() : [])
@@ -64,10 +63,8 @@ const AdminCustomers: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  // Initial load
   useEffect(() => { fetchCustomers('', 'name'); }, [fetchCustomers]);
 
-  // Debounced search
   const handleSearch = (val: string) => {
     setSearch(val);
     if (searchTimeout) clearTimeout(searchTimeout);
@@ -79,16 +76,17 @@ const AdminCustomers: React.FC = () => {
     fetchCustomers(search, val);
   };
 
-  // Aggregate stats from the full unfiltered list
+  // Aggregate stats
   const totalRevenue  = allCustomers.reduce((s, c) => s + parseFloat(c.total_spent || '0'), 0);
   const totalOrders   = allCustomers.reduce((s, c) => s + (c.orders || 0), 0);
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
+  // Use inline labels for keys that may be missing in translation files
   const stats = [
-    { label: t('admin.cust.totalCustomers'), value: allCustomers.length.toString(), icon: <IconUsers /> },
-    { label: t('admin.cust.totalRevenue'),   value: `$${totalRevenue.toFixed(0)}`,  icon: <IconRevenue /> },
-    { label: t('admin.cust.avgOrder'),       value: `$${avgOrderValue.toFixed(2)}`, icon: <IconAvg /> },
-    { label: t('admin.cust.totalOrders') ?? 'Total Orders', value: totalOrders.toString(), icon: <IconOrders /> },
+    { label: t('admin.cust.totalCustomers'),  value: allCustomers.length.toString(), icon: <IconUsers /> },
+    { label: t('admin.cust.totalRevenue'),    value: `$${totalRevenue.toFixed(0)}`,  icon: <IconRevenue /> },
+    { label: t('admin.cust.avgOrder'),        value: `$${avgOrderValue.toFixed(2)}`, icon: <IconAvg /> },
+    { label: 'Total Orders',                  value: totalOrders.toString(),          icon: <IconOrders /> },
   ];
 
   const selectStyle: React.CSSProperties = {
@@ -120,7 +118,7 @@ const AdminCustomers: React.FC = () => {
         </p>
       </div>
 
-      {/* Stats — computed from real data */}
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 14, marginBottom: 22 }}>
         {stats.map(s => (
           <div key={s.label} style={{ ...card, padding: '18px 20px' }}>
@@ -189,11 +187,11 @@ const AdminCustomers: React.FC = () => {
                 <tr style={{ borderBottom: '1px solid #ede5d8' }}>
                   {[
                     t('admin.cust.col.customer'),
-                    t('admin.cust.col.phone') ?? 'Phone',
+                    t('admin.cust.col.phone') || 'Phone',
                     t('admin.cust.col.orders'),
                     t('admin.cust.col.spent'),
                     t('admin.cust.col.joined'),
-                    t('admin.cust.col.lastOrder'),
+                    t('admin.cust.col.lastOrder') || 'Last Order',
                   ].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '10px 20px', color: '#a08878', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
                       {h}
@@ -275,6 +273,7 @@ const AdminCustomers: React.FC = () => {
               </div>
             ))}
           </div>
+
         </div>
       )}
     </div>

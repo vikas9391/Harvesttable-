@@ -3,7 +3,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './components/Navbar'
-import { LangProvider } from './context/Languagecontext'  
+import { LangProvider } from './context/Languagecontext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import HomePage from './pages/HomePage'
@@ -26,14 +26,19 @@ import AdminSettings from './pages/admin/AdminSettings'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/signupPage'
 import ProfilePage from './pages/Profilepage'
-import ScrollToTop from "./components/ScrollToTop"
+import ScrollToTop from './components/ScrollToTop'
 
 function App() {
   return (
     <LangProvider>
       <AuthProvider>
         <CartProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition:   true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <ScrollToTop />
             <div className="flex flex-col min-h-screen">
               <Navbar />

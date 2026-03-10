@@ -5,16 +5,8 @@ from .models import StoreSettings, ShippingSettings
 class StoreSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model  = StoreSettings
-        fields = ["store_name", "contact_email", "currency", "updated_at"]
+        fields = ["store_name", "contact_email", "updated_at"]
         read_only_fields = ["updated_at"]
-
-    def validate_currency(self, value):
-        allowed = {"USD", "EUR", "GBP", "MAD"}
-        if value not in allowed:
-            raise serializers.ValidationError(
-                f"Currency must be one of: {', '.join(sorted(allowed))}."
-            )
-        return value
 
 
 class ShippingSettingsSerializer(serializers.ModelSerializer):

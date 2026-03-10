@@ -109,7 +109,7 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   const lowStock     = products.filter(p => p.stock_quantity <= 10);
-  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total || '0'), 0);
+  const totalRevenue = orders.filter(o => o.status === 'delivered').reduce((s, o) => s + parseFloat(o.total || '0'), 0);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
   const recentOrders = orders.slice(0, 5);
 

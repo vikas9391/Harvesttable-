@@ -10,16 +10,7 @@ class StoreSettings(models.Model):
     """
     store_name    = models.CharField(max_length=255, default="HarvestTable")
     contact_email = models.EmailField(default="hello@harvesttable.com")
-    currency      = models.CharField(
-        max_length=10,
-        default="USD",
-        choices=[
-            ("USD", "USD — US Dollar"),
-            ("EUR", "EUR — Euro"),
-            ("GBP", "GBP — British Pound"),
-            ("MAD", "MAD — Moroccan Dirham"),
-        ],
-    )
+    currency      = models.CharField(max_length=10, default="USD", editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
