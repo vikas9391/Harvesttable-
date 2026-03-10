@@ -5,7 +5,26 @@ import type { CartContextType, CartItem, Product } from '../types'
 import { useAuth } from '../components/Navbar'
 import { apiFetch } from '../lib/api'
 
-const CartContext = createContext<CartContextType | null>(null)
+// ─── Shipping config (mirrors AdminSettings / backend StoreSettings) ──────────
+export interface ShippingConfig {
+  freeShippingThreshold: number   // e.g. 50
+  standardShippingCost:  number   // e.g. 5.99
+}
+
+const DEFAULT_SHIPPING: ShippingConfig = {
+  freeShippingThreshold: 50,
+  standardShippingCost:  5.99,
+}
+
+// ─── Extended context type ────────────────────────────────────────────────────
+interface ExtendedCartContextType extends CartContextType {
+  shippingCost:    number
+  isFreeShipping:  boolean
+  amountToFree:    number          // how much more until free shipping
+  shippingConfig:  ShippingConfig
+}
+
+const CartContext = createContext<ExtendedCartContextType | null>(null)
 
 const CART_KEY = 'harvest_cart'
 
@@ -24,7 +43,6 @@ function clearLocalCart() {
   localStorage.removeItem(CART_KEY)
 }
 
-
 function serverItemsToCartItems(serverItems: any[]): CartItem[] {
   return serverItems.map(i => ({
     cartItemId: i.id,
@@ -35,8 +53,27 @@ function serverItemsToCartItems(serverItems: any[]): CartItem[] {
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { isLoggedIn, authLoading } = useAuth()
-  const [items, setItems]           = useState<CartItem[]>(loadLocalCart)
-  const [syncing, setSyncing]       = useState(false)
+  const [items,          setItems]          = useState<CartItem[]>(loadLocalCart)
+  const [syncing,        setSyncing]        = useState(false)
+  const [shippingConfig, setShippingConfig] = useState<ShippingConfig>(DEFAULT_SHIPPING)
+
+  // ── Fetch shipping settings from backend on mount ─────────────────────────
+  useEffect(() => {
+    const fetchShippingConfig = async () => {
+      try {
+        const res  = await apiFetch('/api/settings/shipping/')
+        const data = await res.json()
+        setShippingConfig({
+          freeShippingThreshold: parseFloat(data.free_shipping_threshold),
+          standardShippingCost:  parseFloat(data.standard_shipping_cost),
+        })
+      } catch (err) {
+        // Falls back to DEFAULT_SHIPPING — no crash
+        console.warn('Could not load shipping config, using defaults:', err)
+      }
+    }
+    fetchShippingConfig()
+  }, [])
 
   // ── On login: merge guest cart → server, then load server cart ────────────
   useEffect(() => {
@@ -70,7 +107,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       init()
     } else {
-      // Logged out — fall back to localStorage
       setItems(loadLocalCart())
     }
   }, [isLoggedIn, authLoading])
@@ -163,13 +199,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems([])
   }, [isLoggedIn])
 
+  // ── Shipping calculations ─────────────────────────────────────────────────
   const totalItems = items.reduce((s, i) => s + i.quantity, 0)
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.product.price) * i.quantity, 0)
+
+  const isFreeShipping = totalPrice >= shippingConfig.freeShippingThreshold
+  const shippingCost   = totalItems === 0 ? 0 : isFreeShipping ? 0 : shippingConfig.standardShippingCost
+  const amountToFree   = Math.max(0, shippingConfig.freeShippingThreshold - totalPrice)
 
   return (
     <CartContext.Provider value={{
       items, addToCart, removeFromCart, updateQuantity,
       clearCart, totalItems, totalPrice, syncing,
+      shippingCost, isFreeShipping, amountToFree, shippingConfig,
     }}>
       {children}
     </CartContext.Provider>

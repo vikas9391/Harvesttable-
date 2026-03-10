@@ -20,15 +20,15 @@ interface UseProductsOptions {
 
 function buildQuery(opts: UseProductsOptions): string {
   const p = new URLSearchParams()
-  if (opts.category)        p.set('category',      opts.category)
-  if (opts.search)          p.set('search',        opts.search)
-  if (opts.ordering)        p.set('ordering',      opts.ordering)
-  if (opts.is_organic)      p.set('is_organic',    'true')
-  if (opts.is_vegan)        p.set('is_vegan',      'true')
-  if (opts.is_gluten_free)  p.set('is_gluten_free','true')
-  if (opts.is_fair_trade)   p.set('is_fair_trade', 'true')
-  if (opts.is_featured)     p.set('is_featured',   'true')
-  if (opts.is_seasonal)     p.set('is_seasonal',   'true')
+  if (opts.category)       p.set('category',       opts.category)
+  if (opts.search)         p.set('search',         opts.search)
+  if (opts.ordering)       p.set('ordering',       opts.ordering)
+  if (opts.is_organic)     p.set('is_organic',     'true')
+  if (opts.is_vegan)       p.set('is_vegan',       'true')
+  if (opts.is_gluten_free) p.set('is_gluten_free', 'true')
+  if (opts.is_fair_trade)  p.set('is_fair_trade',  'true')
+  if (opts.is_featured)    p.set('is_featured',    'true')
+  if (opts.is_seasonal)    p.set('is_seasonal',    'true')
   const q = p.toString()
   return q ? `?${q}` : ''
 }
@@ -48,7 +48,6 @@ function filterStatic(opts: UseProductsOptions): Product[] {
   if (opts.is_featured)    list = list.filter(p => p.is_featured)
   if (opts.is_seasonal)    list = list.filter(p => p.is_seasonal)
 
-  // ordering
   const ord = opts.ordering ?? '-created_at'
   if (ord === 'price' || ord === 'price-asc')
     list = list.sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
@@ -76,7 +75,6 @@ export function useProducts(opts: UseProductsOptions = {}): ProductsState {
 
   const refetch = useCallback(() => setTick(t => t + 1), [])
 
-  // Stable key so effect only re-runs when options actually change
   const queryKey = buildQuery(opts) + tick
 
   useEffect(() => {
@@ -90,15 +88,13 @@ export function useProducts(opts: UseProductsOptions = {}): ProductsState {
         return r.json()
       })
       .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
-        if (!cancelled) {
+        if (!cancelled)
           setProducts(Array.isArray(data) ? data : (data.results ?? []))
-        }
       })
       .catch(() => {
-        // API unreachable — fall back to static data so UI still works
         if (!cancelled) {
           setProducts(filterStatic(opts))
-          setError(null)   // suppress the error; static data is fine
+          setError(null)
         }
       })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -125,7 +121,6 @@ export function useProduct(slug: string | undefined) {
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((data: ApiProduct) => { if (!cancelled) setProduct(data) })
       .catch(() => {
-        // Fallback: find in static data
         if (!cancelled) {
           const found = PRODUCTS.find(p => p.slug === slug) ?? null
           setProduct(found)
@@ -146,14 +141,21 @@ export function useFeaturedProducts() {
   const [loading,  setLoading]  = useState(true)
 
   useEffect(() => {
+    let cancelled = false
+
     fetch('/api/products/featured/', { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then((d: ApiProduct[]) => setProducts(d))
-      .catch(() => {
-        // Fallback to static
-        setProducts(PRODUCTS.filter(p => p.is_featured).slice(0, 4))
+      .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
+        if (!cancelled)
+          setProducts(Array.isArray(data) ? data : (data.results ?? []))
       })
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (!cancelled)
+          setProducts(PRODUCTS.filter(p => p.is_featured).slice(0, 4))
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+
+    return () => { cancelled = true }
   }, [])
 
   return { products, loading }
@@ -165,14 +167,21 @@ export function useSeasonalProducts() {
   const [loading,  setLoading]  = useState(true)
 
   useEffect(() => {
+    let cancelled = false
+
     fetch('/api/products/seasonal/', { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then((d: ApiProduct[]) => setProducts(d))
-      .catch(() => {
-        // Fallback to static
-        setProducts(PRODUCTS.filter(p => p.is_seasonal).slice(0, 3))
+      .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
+        if (!cancelled)
+          setProducts(Array.isArray(data) ? data : (data.results ?? []))
       })
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (!cancelled)
+          setProducts(PRODUCTS.filter(p => p.is_seasonal).slice(0, 3))
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+
+    return () => { cancelled = true }
   }, [])
 
   return { products, loading }

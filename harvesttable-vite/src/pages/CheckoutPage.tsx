@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/Languagecontext';
+import { Product } from '../types';
 import ProductImage from '../components/ProductImage';
 
 const C = {
@@ -15,6 +16,110 @@ const C = {
   infoBlue: 'rgba(30,58,100,0.08)', infoBlueBorder: 'rgba(50,80,160,0.18)', infoBlueText: '#4a6898',
   errorBg: 'rgba(176,64,64,0.08)', errorBorder: 'rgba(176,64,64,0.2)', errorText: '#b04040',
 };
+
+// ── Country data: [English (API value), French label, Arabic label] ────────────
+// The English value is always sent to the API. Labels change per language.
+const COUNTRIES_RAW: [string, string, string][] = [
+  // Africa
+  ['Algeria',              'Algérie',              'الجزائر'],
+  ['Egypt',                'Égypte',               'مصر'],
+  ['Ethiopia',             'Éthiopie',             'إثيوبيا'],
+  ['Ghana',                'Ghana',                'غانا'],
+  ['Ivory Coast',          "Côte d'Ivoire",        'ساحل العاج'],
+  ['Kenya',                'Kenya',                'كينيا'],
+  ['Libya',                'Libye',                'ليبيا'],
+  ['Morocco',              'Maroc',                'المغرب'],
+  ['Nigeria',              'Nigéria',              'نيجيريا'],
+  ['Senegal',              'Sénégal',              'السنغال'],
+  ['South Africa',         'Afrique du Sud',       'جنوب أفريقيا'],
+  ['Sudan',                'Soudan',               'السودان'],
+  ['Tanzania',             'Tanzanie',             'تنزانيا'],
+  ['Tunisia',              'Tunisie',              'تونس'],
+  ['Uganda',               'Ouganda',              'أوغندا'],
+  // Americas
+  ['Argentina',            'Argentine',            'الأرجنتين'],
+  ['Brazil',               'Brésil',               'البرازيل'],
+  ['Canada',               'Canada',               'كندا'],
+  ['Chile',                'Chili',                'تشيلي'],
+  ['Colombia',             'Colombie',             'كولومبيا'],
+  ['Mexico',               'Mexique',              'المكسيك'],
+  ['Peru',                 'Pérou',                'بيرو'],
+  ['United States',        'États-Unis',           'الولايات المتحدة'],
+  ['Venezuela',            'Venezuela',            'فنزويلا'],
+  // Asia
+  ['Bangladesh',           'Bangladesh',           'بنغلاديش'],
+  ['China',                'Chine',                'الصين'],
+  ['India',                'Inde',                 'الهند'],
+  ['Indonesia',            'Indonésie',            'إندونيسيا'],
+  ['Iran',                 'Iran',                 'إيران'],
+  ['Iraq',                 'Irak',                 'العراق'],
+  ['Israel',               'Israël',               'إسرائيل'],
+  ['Japan',                'Japon',                'اليابان'],
+  ['Jordan',               'Jordanie',             'الأردن'],
+  ['Kazakhstan',           'Kazakhstan',           'كازاخستان'],
+  ['Kuwait',               'Koweït',               'الكويت'],
+  ['Lebanon',              'Liban',                'لبنان'],
+  ['Malaysia',             'Malaisie',             'ماليزيا'],
+  ['Oman',                 'Oman',                 'عمان'],
+  ['Pakistan',             'Pakistan',             'باكستان'],
+  ['Philippines',          'Philippines',          'الفلبين'],
+  ['Qatar',                'Qatar',                'قطر'],
+  ['Saudi Arabia',         'Arabie Saoudite',      'المملكة العربية السعودية'],
+  ['Singapore',            'Singapour',            'سنغافورة'],
+  ['South Korea',          'Corée du Sud',         'كوريا الجنوبية'],
+  ['Syria',                'Syrie',                'سوريا'],
+  ['Taiwan',               'Taïwan',               'تايوان'],
+  ['Thailand',             'Thaïlande',            'تايلاند'],
+  ['Turkey',               'Turquie',              'تركيا'],
+  ['United Arab Emirates', 'Émirats Arabes Unis',  'الإمارات العربية المتحدة'],
+  ['Vietnam',              'Vietnam',              'فيتنام'],
+  ['Yemen',                'Yémen',                'اليمن'],
+  // Europe
+  ['Austria',              'Autriche',             'النمسا'],
+  ['Belgium',              'Belgique',             'بلجيكا'],
+  ['Czech Republic',       'République Tchèque',   'جمهورية التشيك'],
+  ['Denmark',              'Danemark',             'الدنمارك'],
+  ['Finland',              'Finlande',             'فنلندا'],
+  ['France',               'France',               'فرنسا'],
+  ['Germany',              'Allemagne',            'ألمانيا'],
+  ['Greece',               'Grèce',                'اليونان'],
+  ['Hungary',              'Hongrie',              'المجر'],
+  ['Ireland',              'Irlande',              'أيرلندا'],
+  ['Italy',                'Italie',               'إيطاليا'],
+  ['Netherlands',          'Pays-Bas',             'هولندا'],
+  ['Norway',               'Norvège',              'النرويج'],
+  ['Poland',               'Pologne',              'بولندا'],
+  ['Portugal',             'Portugal',             'البرتغال'],
+  ['Romania',              'Roumanie',             'رومانيا'],
+  ['Russia',               'Russie',               'روسيا'],
+  ['Spain',                'Espagne',              'إسبانيا'],
+  ['Sweden',               'Suède',                'السويد'],
+  ['Switzerland',          'Suisse',               'سويسرا'],
+  ['Ukraine',              'Ukraine',              'أوكرانيا'],
+  ['United Kingdom',       'Royaume-Uni',          'المملكة المتحدة'],
+  // Oceania
+  ['Australia',            'Australie',            'أستراليا'],
+  ['New Zealand',          'Nouvelle-Zélande',     'نيوزيلندا'],
+];
+
+/** Returns alphabetically-sorted country options with labels in the active language.
+ *  `value` is always English (sent to the API). */
+function getCountries(lang: string): { value: string; label: string }[] {
+  const locale = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr' : 'en';
+  return COUNTRIES_RAW
+    .map(([en, fr, ar]) => ({
+      value: en,
+      label: lang === 'fr' ? fr : lang === 'ar' ? ar : en,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+// ── Multilingual product-name helper ─────────────────────────────────────────
+function localName(product: Product, lang: string): string {
+  if (lang === 'fr' && product.name_fr?.trim()) return product.name_fr;
+  if (lang === 'ar' && product.name_ar?.trim()) return product.name_ar;
+  return product.name;
+}
 
 function getCsrfToken(): string {
   for (const cookie of document.cookie.split(';')) {
@@ -58,13 +163,15 @@ function validateStep3Card(f: typeof INITIAL_FORM): Record<string, string> {
   return e;
 }
 
-// ─── InputField — outside parent to prevent focus loss on re-render ───────────
+// ─── InputField ───────────────────────────────────────────────────────────────
 interface InputFieldProps {
   label: string; fieldKey: string; type?: string; placeholder?: string;
   value: string; error?: string; isRTL: boolean;
   onChange: (key: string, value: string) => void;
 }
-const InputField: React.FC<InputFieldProps> = ({ label, fieldKey, type = 'text', placeholder = '', value, error, isRTL, onChange }) => {
+const InputField: React.FC<InputFieldProps> = ({
+  label, fieldKey, type = 'text', placeholder = '', value, error, isRTL, onChange,
+}) => {
   const iStyle: React.CSSProperties = {
     width: '100%', padding: '12px 16px', borderRadius: 8, fontSize: 13, outline: 'none',
     boxSizing: 'border-box', fontFamily: "'Jost', sans-serif",
@@ -85,7 +192,8 @@ const InputField: React.FC<InputFieldProps> = ({ label, fieldKey, type = 'text',
       {error && (
         <p style={{ fontSize: 11, color: C.errorText, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 3 }}>
           <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01"/>
+            <circle cx="12" cy="12" r="10"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01"/>
           </svg>
           {error}
         </p>
@@ -94,15 +202,17 @@ const InputField: React.FC<InputFieldProps> = ({ label, fieldKey, type = 'text',
   );
 };
 
-// ─── PaymentMethodSelector — outside parent for same reason ───────────────────
+// ─── PaymentMethodSelector ────────────────────────────────────────────────────
 interface PaymentMethodSelectorProps {
   selected: PaymentMethod;
   onChange: (m: PaymentMethod) => void;
+  t: (key: string) => string;
 }
-const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected, onChange }) => {
-  const methods: { id: PaymentMethod; icon: React.ReactNode; title: string; desc: string }[] = [
+const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected, onChange, t }) => {
+  const label = (key: string, fallback: string) => { const v = t(key); return v === key ? fallback : v; };
+  const methods: { id: PaymentMethod; icon: React.ReactNode; titleKey: string; descKey: string }[] = [
     {
-      id: 'card', title: 'Credit / Debit Card', desc: 'Pay securely with your card',
+      id: 'card', titleKey: 'checkout.payCard', descKey: 'checkout.payCardDesc',
       icon: (
         <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
           <rect x="2" y="5" width="20" height="14" rx="2"/>
@@ -112,7 +222,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected,
       ),
     },
     {
-      id: 'cod', title: 'Cash on Delivery', desc: 'Pay when your order arrives',
+      id: 'cod', titleKey: 'checkout.payCOD', descKey: 'checkout.payCODDesc',
       icon: (
         <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/>
@@ -126,6 +236,8 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected,
     <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
       {methods.map(m => {
         const active = selected === m.id;
+        const title = label(m.titleKey, m.id === 'card' ? 'Credit / Debit Card' : 'Cash on Delivery');
+        const desc  = label(m.descKey,  m.id === 'card' ? 'Pay securely with your card' : 'Pay when your order arrives');
         return (
           <button key={m.id} type="button" onClick={() => onChange(m.id)} style={{
             flex: 1, display: 'flex', alignItems: 'center', gap: 12,
@@ -138,16 +250,13 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected,
             onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = C.borderHov; }}
             onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = C.border; }}
           >
-            {/* Radio dot */}
             <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, border: `2px solid ${active ? C.accent : C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
               {active && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: C.accent }} />}
             </div>
-            {/* Icon */}
             <span style={{ color: active ? C.accent : C.muted, display: 'flex', flexShrink: 0 }}>{m.icon}</span>
-            {/* Text */}
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: active ? C.accent : C.heading, margin: '0 0 2px' }}>{m.title}</p>
-              <p style={{ fontSize: 11, color: C.muted, margin: 0 }}>{m.desc}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: active ? C.accent : C.heading, margin: '0 0 2px' }}>{title}</p>
+              <p style={{ fontSize: 11, color: C.muted, margin: 0 }}>{desc}</p>
             </div>
           </button>
         );
@@ -159,7 +268,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({ selected,
 // ─── CheckoutPage ─────────────────────────────────────────────────────────────
 const CheckoutPage: React.FC = () => {
   const { items, totalPrice, clearCart } = useCart();
-  const { t, isRTL } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
 
   const [step, setStep]               = useState<1 | 2 | 3>(1);
   const [placed, setPlaced]           = useState(false);
@@ -171,15 +280,15 @@ const CheckoutPage: React.FC = () => {
   const [form, setForm]               = useState(INITIAL_FORM);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
 
+  // Recomputed whenever `lang` changes — labels switch language, value stays English
+  const countries = getCountries(lang);
+
   const setField = (k: string, v: string) => {
     setForm(prev => ({ ...prev, [k]: v }));
     if (fieldErrors[k]) setFieldErrors(prev => { const n = { ...prev }; delete n[k]; return n; });
   };
 
-  useEffect(() => {
-    const t2 = setTimeout(() => setVis(true), 60);
-    return () => clearTimeout(t2);
-  }, []);
+  useEffect(() => { const t2 = setTimeout(() => setVis(true), 60); return () => clearTimeout(t2); }, []);
 
   const shippingFree = totalPrice >= 50;
   const shippingCost = shippingFree ? 0 : 5.99;
@@ -193,7 +302,6 @@ const CheckoutPage: React.FC = () => {
   };
 
   const handlePlaceOrder = async () => {
-    // Card requires field validation; COD skips it entirely
     if (paymentMethod === 'card') {
       const errors = validateStep3Card(form);
       if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
@@ -201,7 +309,6 @@ const CheckoutPage: React.FC = () => {
     setFieldErrors({});
     setSubmitting(true);
     setSubmitError('');
-
     const payload = {
       email:         form.email,
       full_name:     `${form.firstName} ${form.lastName}`.trim(),
@@ -211,12 +318,10 @@ const CheckoutPage: React.FC = () => {
       city:          form.city,
       state:         '',
       postal_code:   form.postal,
-      country:       form.country,
-      // Pass payment method in notes so the backend/admin can see it
+      country:       form.country,   // always English (e.g. "France")
       notes: paymentMethod === 'cod' ? 'Payment method: Cash on Delivery' : 'Payment method: Card',
       items: items.map(i => ({ product: i.product.id, quantity: i.quantity })),
     };
-
     try {
       const res = await fetch('/api/orders/', {
         method: 'POST', credentials: 'include',
@@ -260,6 +365,9 @@ const CheckoutPage: React.FC = () => {
 
   const steps = [t('checkout.step1'), t('checkout.step2'), t('checkout.step3')];
 
+  // Helper: show the localised label for whatever country is stored in form.country
+  const selectedCountryLabel = countries.find(c => c.value === form.country)?.label ?? form.country;
+
   // ── Empty cart ────────────────────────────────────────────────────────────
   if (items.length === 0 && !placed) return (
     <div style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -296,8 +404,6 @@ const CheckoutPage: React.FC = () => {
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, color: C.heading, marginBottom: 8, animation: 'fadeUp 0.6s ease 0.3s both' }}>{t('checkout.orderPlaced')}</h1>
           <p style={{ color: C.muted, marginBottom: 8, animation: 'fadeUp 0.6s ease 0.4s both' }}>{t('checkout.thankYou')}</p>
           {orderNum && <p style={{ color: C.accent, fontFamily: 'monospace', fontSize: 13, marginBottom: 16, animation: 'fadeUp 0.6s ease 0.5s both' }}>#{orderNum}</p>}
-
-          {/* COD reminder */}
           {paymentMethod === 'cod' && (
             <div style={{ margin: '0 auto 20px', padding: '14px 18px', borderRadius: 12, backgroundColor: 'rgba(122,74,40,0.07)', border: `1px solid rgba(122,74,40,0.18)`, animation: 'fadeUp 0.6s ease 0.55s both', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
               <svg width="20" height="20" fill="none" stroke={C.accent} strokeWidth="1.7" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -310,7 +416,6 @@ const CheckoutPage: React.FC = () => {
               </p>
             </div>
           )}
-
           <p style={{ color: C.muted, fontSize: 13, marginBottom: 28, animation: 'fadeUp 0.6s ease 0.6s both' }}>
             {t('checkout.confirmEmail', { email: form.email })}
           </p>
@@ -319,7 +424,7 @@ const CheckoutPage: React.FC = () => {
               {t('checkout.continueShopping')}
             </Link>
             <Link to="/profile" style={{ padding: '12px 28px', border: `1px solid ${C.border}`, borderRadius: 2, color: C.body, textDecoration: 'none', fontSize: 11, fontFamily: "'Jost', sans-serif", letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-              View Orders
+              {t('profile.orders')}
             </Link>
           </div>
         </div>
@@ -389,20 +494,38 @@ const CheckoutPage: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                       <InputField label={t('checkout.city')}   fieldKey="city"   value={form.city}   error={fieldErrors.city}   isRTL={isRTL} onChange={setField} />
                       <InputField label={t('checkout.postal')} fieldKey="postal" value={form.postal} error={fieldErrors.postal} isRTL={isRTL} onChange={setField} />
+
+                      {/* ── Country dropdown — re-renders in active language ── */}
                       <div>
                         <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', color: fieldErrors.country ? C.errorText : C.label, marginBottom: 6, fontFamily: "'Jost', sans-serif", textTransform: 'uppercase' }}>
                           {t('checkout.country')} <span style={{ color: C.errorText }}>*</span>
                         </label>
-                        <select value={form.country} onChange={e => setField('country', e.target.value)}
-                          style={{ width: '100%', padding: '12px 16px', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: "'Jost', sans-serif", backgroundColor: C.surface, color: C.heading, cursor: 'pointer', border: `1px solid ${fieldErrors.country ? C.borderErr : C.border}`, transition: 'border-color 0.2s' }}
+                        <select
+                          value={form.country}
+                          onChange={e => setField('country', e.target.value)}
+                          dir={isRTL ? 'rtl' : 'ltr'}
+                          style={{
+                            width: '100%', padding: '12px 16px', borderRadius: 8, fontSize: 13,
+                            outline: 'none', boxSizing: 'border-box',
+                            fontFamily: isRTL ? "'Noto Naskh Arabic', 'Segoe UI', serif" : "'Jost', sans-serif",
+                            backgroundColor: C.surface, color: C.heading, cursor: 'pointer',
+                            border: `1px solid ${fieldErrors.country ? C.borderErr : C.border}`,
+                            transition: 'border-color 0.2s', direction: isRTL ? 'rtl' : 'ltr',
+                          }}
                           onFocus={e => { if (!fieldErrors.country) e.currentTarget.style.borderColor = C.borderHov; }}
-                          onBlur={e => { if (!fieldErrors.country) e.currentTarget.style.borderColor = C.border; }}>
+                          onBlur={e => { if (!fieldErrors.country) e.currentTarget.style.borderColor = C.border; }}
+                        >
                           <option value="">{t('checkout.select')}</option>
-                          {['Morocco','United States','United Kingdom','France','Germany','Spain','Canada','Australia'].map(c => <option key={c} value={c}>{c}</option>)}
+                          {countries.map(({ value, label: countryLabel }) => (
+                            <option key={value} value={value}>{countryLabel}</option>
+                          ))}
                         </select>
-                        {fieldErrors.country && <p style={{ fontSize: 11, color: C.errorText, margin: '4px 0 0' }}>{fieldErrors.country}</p>}
+                        {fieldErrors.country && (
+                          <p style={{ fontSize: 11, color: C.errorText, margin: '4px 0 0' }}>{fieldErrors.country}</p>
+                        )}
                       </div>
                     </div>
+
                     {Object.keys(fieldErrors).length > 0 && (
                       <div style={{ padding: '10px 14px', backgroundColor: C.errorBg, border: `1px solid ${C.errorBorder}`, borderRadius: 8, color: C.errorText, fontSize: 12 }}>
                         Please fill in all required fields correctly.
@@ -424,10 +547,23 @@ const CheckoutPage: React.FC = () => {
                   <div style={{ marginBottom: 24 }}>
                     {items.map((item, idx) => (
                       <div key={item.product.id} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: idx < items.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                        <ProductImage type={item.product.imageType} name={item.product.name} className="w-12 h-12 rounded-lg flex-shrink-0" />
+                        <ProductImage
+                          type={item.product.category ?? item.product.imageType ?? 'spices'}
+                          name={item.product.name}
+                          imageUrl={item.product.image_url}
+                          className="w-12 h-12 rounded-lg flex-shrink-0"
+                        />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ color: C.heading, fontSize: 13, margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product.name}</p>
-                          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Qty: {item.quantity}</p>
+                          <p style={{
+                            color: C.heading, fontSize: 13, margin: '0 0 2px',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }),
+                          }}>
+                            {localName(item.product, lang)}
+                          </p>
+                          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+                            {t('product.qty')}: {item.quantity}
+                          </p>
                         </div>
                         <span style={{ color: C.accent, fontSize: 13, fontWeight: 700, flexShrink: 0, fontFamily: "'Cormorant Garamond', serif" }}>
                           ${(parseFloat(item.product.price) * item.quantity).toFixed(2)}
@@ -437,14 +573,19 @@ const CheckoutPage: React.FC = () => {
                   </div>
                   <div style={{ backgroundColor: '#f7f2ea', border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 20, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
-                      <span>{t('checkout.shipTo')}:</span><span style={{ color: C.body }}>{form.firstName} {form.lastName}</span>
+                      <span>{t('checkout.shipTo')}:</span>
+                      <span style={{ color: C.body }}>{form.firstName} {form.lastName}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
-                      <span>Email:</span><span style={{ color: C.body }}>{form.email}</span>
+                      <span>{t('checkout.email')}:</span>
+                      <span style={{ color: C.body }}>{form.email}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
                       <span>{t('checkout.addressLabel')}:</span>
-                      <span style={{ color: C.body, textAlign: 'right', maxWidth: '60%' }}>{form.address}, {form.city}, {form.postal}, {form.country}</span>
+                      <span style={{ color: C.body, textAlign: 'right', maxWidth: '60%' }}>
+                        {/* Show localised country name in the review step */}
+                        {form.address}, {form.city}, {form.postal}, {selectedCountryLabel}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 12 }}>
@@ -458,16 +599,9 @@ const CheckoutPage: React.FC = () => {
               {step === 3 && (
                 <div style={{ backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, animation: 'stepSlide 0.45s cubic-bezier(0.22,1,0.36,1) both', boxShadow: '0 2px 12px rgba(122,74,40,0.05)' }}>
                   <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: C.heading, marginBottom: 20, fontWeight: 600 }}>{t('checkout.payment')}</h2>
-
-                  {/* ── Payment method toggle ── */}
-                  <PaymentMethodSelector
-                    selected={paymentMethod}
-                    onChange={m => { setPaymentMethod(m); setFieldErrors({}); setSubmitError(''); }}
-                  />
-
+                  <PaymentMethodSelector selected={paymentMethod} onChange={m => { setPaymentMethod(m); setFieldErrors({}); setSubmitError(''); }} t={t} />
                   <div style={{ height: 1, backgroundColor: C.border, marginBottom: 20 }} />
 
-                  {/* ── Card fields ── */}
                   {paymentMethod === 'card' && (
                     <>
                       <div style={{ padding: 12, backgroundColor: C.infoBlue, border: `1px solid ${C.infoBlueBorder}`, borderRadius: 8, marginBottom: 20, color: C.infoBlueText, fontSize: 12, fontFamily: "'Jost', sans-serif", display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -492,7 +626,6 @@ const CheckoutPage: React.FC = () => {
                     </>
                   )}
 
-                  {/* ── Cash on Delivery info panel ── */}
                   {paymentMethod === 'cod' && (
                     <div style={{ padding: 20, backgroundColor: 'rgba(122,74,40,0.05)', border: `1px solid rgba(122,74,40,0.15)`, borderRadius: 12 }}>
                       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -504,7 +637,7 @@ const CheckoutPage: React.FC = () => {
                           </svg>
                         </div>
                         <div style={{ flex: 1 }}>
-                          <p style={{ fontSize: 14, fontWeight: 600, color: C.heading, margin: '0 0 6px' }}>Pay on Delivery</p>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: C.heading, margin: '0 0 6px' }}>{t('checkout.payCOD')}</p>
                           <p style={{ fontSize: 13, color: C.muted, margin: '0 0 14px', lineHeight: 1.7 }}>
                             No payment needed right now. Our delivery agent will collect{' '}
                             <strong style={{ color: C.accent }}>${grandTotal.toFixed(2)}</strong> when your order arrives.
@@ -559,7 +692,12 @@ const CheckoutPage: React.FC = () => {
               <div style={{ marginBottom: 16 }}>
                 {items.map(i => (
                   <div key={i.product.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8, color: C.muted }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8 }}>{i.product.name} ×{i.quantity}</span>
+                    <span style={{
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8,
+                      ...(lang === 'ar' && { fontFamily: "'Noto Naskh Arabic', 'Segoe UI', serif", direction: 'rtl' }),
+                    }}>
+                      {localName(i.product, lang)} ×{i.quantity}
+                    </span>
                     <span style={{ flexShrink: 0 }}>${(parseFloat(i.product.price) * i.quantity).toFixed(2)}</span>
                   </div>
                 ))}
@@ -574,12 +712,11 @@ const CheckoutPage: React.FC = () => {
                     {shippingFree ? t('checkout.shippingFree') : `$${shippingCost.toFixed(2)}`}
                   </span>
                 </div>
-                {/* Live payment method badge */}
                 {step === 3 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: C.muted, marginBottom: 10 }}>
-                    <span>Payment</span>
+                    <span>{t('checkout.payment.label')}</span>
                     <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 20, fontWeight: 600, backgroundColor: paymentMethod === 'cod' ? 'rgba(122,74,40,0.09)' : 'rgba(50,80,160,0.08)', color: paymentMethod === 'cod' ? C.accent : '#4a6898', border: `1px solid ${paymentMethod === 'cod' ? 'rgba(122,74,40,0.2)' : 'rgba(50,80,160,0.18)'}` }}>
-                      {paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card'}
+                      {paymentMethod === 'cod' ? t('checkout.payCOD') : t('checkout.payCardBadge')}
                     </span>
                   </div>
                 )}

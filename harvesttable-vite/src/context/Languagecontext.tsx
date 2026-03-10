@@ -635,6 +635,14 @@ const translations: Record<LangCode, Record<string, string>> = {
 'shop.heroBadge': 'Moroccan Botanicals',
 'shop.heroTitle': 'Our Collection',
 'shop.heroDesc': 'Explore our carefully curated selection of artisan Moroccan herbs, teas, spices, and gift boxes.',
+'checkout.payment.label':   'Payment',
+'checkout.payCard':         'Credit / Debit Card',
+'checkout.payCardDesc':     'Pay securely with your card',
+'checkout.payCOD':          'Cash on Delivery',
+'checkout.payCODDesc':      'Pay when your order arrives',
+'checkout.payCardBadge':    'Card',
+
+
 },
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1219,6 +1227,14 @@ const translations: Record<LangCode, Record<string, string>> = {
 'shop.heroBadge': 'Botaniques Marocaines',
 'shop.heroTitle': 'Notre Collection',
 'shop.heroDesc': 'Explorez notre sélection soigneusement curatée de produits artisanaux marocains : herbes, thés, épices et coffrets cadeaux.',
+'checkout.payment.label':   'Paiement',
+'checkout.payCard':         'Carte Bancaire',
+'checkout.payCardDesc':     'Payez en toute sécurité avec votre carte',
+'checkout.payCOD':          'Paiement à la Livraison',
+'checkout.payCODDesc':      'Payez à la réception de votre commande',
+'checkout.payCardBadge':    'Carte',
+
+// Arabic
 },
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1800,6 +1816,12 @@ const translations: Record<LangCode, Record<string, string>> = {
 'shop.heroBadge': 'نباتات مغربية',
 'shop.heroTitle': 'مجموعتنا',
 'shop.heroDesc': 'استكشف تشكيلتنا المختارة بعناية من الأعشاب والشاي والتوابل وصناديق الهدايا المغربية الحرفية.',
+'checkout.payment.label':   'الدفع',
+'checkout.payCard':         'بطاقة ائتمان / خصم',
+'checkout.payCardDesc':     'ادفع بأمان باستخدام بطاقتك',
+'checkout.payCOD':          'الدفع عند الاستلام',
+'checkout.payCODDesc':      'ادفع عند وصول طلبك',
+'checkout.payCardBadge':    'بطاقة',
 },
 }
 

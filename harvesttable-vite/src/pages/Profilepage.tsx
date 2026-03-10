@@ -567,7 +567,7 @@ const ProfilePage: React.FC = () => {
                       <svg width="24" height="24" fill="none" stroke={C.muted} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                     </div>
                     <p style={{ color: C.muted, fontSize: 13 }}>{t('profile.wishlistEmpty')}</p>
-                    <Link to="/shop" style={{ display: 'inline-block', marginTop: 14, padding: '10px 24px', borderRadius: 12, fontSize: 13, fontWeight: 700, backgroundColor: C.accent, color: '#fff', textDecoration: 'none' }}>
+                    <Link to="/products" style={{ display: 'inline-block', marginTop: 14, padding: '10px 24px', borderRadius: 12, fontSize: 13, fontWeight: 700, backgroundColor: C.accent, color: '#fff', textDecoration: 'none' }}>
                       {t('profile.browseProducts')}
                     </Link>
                   </div>

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'users',
+    "admin_panel",
 ]
 
 SESSION_COOKIE_SAMESITE = 'Lax'
