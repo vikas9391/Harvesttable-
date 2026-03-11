@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/orders/', include('orders.urls')),
     path('api/users/', include('users.urls')),
     path("api/settings/",  include("admin_panel.urls")),
+    path("api/chatbot/",  include("chatbot.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

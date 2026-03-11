@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework.authtoken',
     'rest_framework',
     'corsheaders',
     'django_filters',
@@ -25,6 +26,7 @@ INSTALLED_APPS = [
     'orders',
     'users',
     "admin_panel",
+    "chatbot",
 ]
 
 SESSION_COOKIE_SAMESITE = 'Lax'
@@ -70,6 +72,9 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',   
+        },
     }
 }
 

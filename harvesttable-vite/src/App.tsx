@@ -27,6 +27,7 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/signupPage'
 import ProfilePage from './pages/Profilepage'
 import ScrollToTop from './components/ScrollToTop'
+import ChatBot from './components/Chatbot'
 
 function App() {
   return (
@@ -68,6 +69,9 @@ function App() {
                 </Routes>
               </main>
               <Footer />
+
+              {/* ── Floating chatbot — visible on every page ── */}
+              <ChatBot />
             </div>
           </BrowserRouter>
         </CartProvider>
