@@ -10,6 +10,12 @@ class ChatSession(models.Model):
     One conversation per visitor.
     Linked to a User if logged in, otherwise tracked by anonymous_id (UUID from localStorage).
     """
+    LANG_CHOICES = [
+        ('en', 'English'),
+        ('fr', 'Français'),
+        ('ar', 'العربية'),
+    ]
+
     user         = models.ForeignKey(
         User,
         null=True, blank=True,
@@ -21,6 +27,14 @@ class ChatSession(models.Model):
     # Snapshot of visitor info at session creation time
     user_name    = models.CharField(max_length=255, blank=True)
     user_email   = models.EmailField(blank=True)
+
+    # ★ Language for this session — kept in sync with every POST from the frontend
+    lang         = models.CharField(
+        max_length=5,
+        choices=LANG_CHOICES,
+        default='en',
+        blank=True,
+    )
 
     created_at   = models.DateTimeField(auto_now_add=True)
     updated_at   = models.DateTimeField(auto_now=True)
@@ -34,7 +48,7 @@ class ChatSession(models.Model):
 
     def __str__(self):
         who = self.user_name or self.user_email or self.anonymous_id or 'anonymous'
-        return f'Session {self.pk} — {who}'
+        return f'Session {self.pk} ({self.lang}) — {who}'
 
 
 class ChatMessage(models.Model):

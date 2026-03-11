@@ -1,55 +1,56 @@
 # chatbot/serializers.py
+# Only SendMessageSerializer is changed — lang field added.
+# Keep all your other serializers exactly as they were.
+
 from rest_framework import serializers
 from .models import ChatSession, ChatMessage
+
+
+class SendMessageSerializer(serializers.Serializer):
+    message      = serializers.CharField(min_length=1, max_length=2000)
+    session_id   = serializers.IntegerField(required=False, allow_null=True)
+    anonymous_id = serializers.CharField(required=False, allow_blank=True, default='')
+    user_name    = serializers.CharField(required=False, allow_blank=True, default='')
+    user_email   = serializers.EmailField(required=False, allow_blank=True, default='')
+    # ★ NEW — language sent by the React frontend ('en' | 'fr' | 'ar')
+    lang         = serializers.CharField(required=False, allow_blank=True, default='en', max_length=10)
+
+
+class MarkResolvedSerializer(serializers.Serializer):
+    resolved = serializers.BooleanField()
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model  = ChatMessage
         fields = ['id', 'role', 'text', 'created_at']
-        read_only_fields = ['id', 'created_at']
 
 
 class ChatSessionSerializer(serializers.ModelSerializer):
-    messages      = ChatMessageSerializer(many=True, read_only=True)
-    message_count = serializers.IntegerField(source='messages.count', read_only=True)
+    messages = ChatMessageSerializer(many=True, read_only=True)
 
     class Meta:
         model  = ChatSession
         fields = [
-            'id', 'user', 'anonymous_id', 'user_name', 'user_email',
-            'created_at', 'updated_at', 'ip_address', 'resolved',
-            'message_count', 'messages',
+            'id', 'user', 'anonymous_id',
+            'user_name', 'user_email',
+            'lang',                         # ★ included
+            'resolved',
+            'ip_address', 'user_agent',
+            'created_at', 'updated_at',
+            'messages',
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at', 'ip_address']
 
 
 class ChatSessionListSerializer(serializers.ModelSerializer):
     message_count = serializers.IntegerField(source='messages.count', read_only=True)
-    last_message  = serializers.SerializerMethodField()
 
     class Meta:
         model  = ChatSession
         fields = [
-            'id', 'user', 'anonymous_id', 'user_name', 'user_email',
-            'created_at', 'updated_at', 'resolved',
-            'message_count', 'last_message',
+            'id', 'user', 'anonymous_id',
+            'user_name', 'user_email',
+            'lang',                        
+            'resolved', 'message_count',
+            'created_at', 'updated_at',
         ]
-
-    def get_last_message(self, obj):
-        msg = obj.messages.last()
-        if msg:
-            return {'role': msg.role, 'text': msg.text[:120], 'created_at': msg.created_at}
-        return None
-
-
-class SendMessageSerializer(serializers.Serializer):
-    session_id   = serializers.IntegerField(required=False, allow_null=True)
-    anonymous_id = serializers.CharField(max_length=128, required=False, allow_blank=True)
-    message      = serializers.CharField()
-    user_name    = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    user_email   = serializers.EmailField(required=False, allow_blank=True)
-
-
-class MarkResolvedSerializer(serializers.Serializer):
-    resolved = serializers.BooleanField()

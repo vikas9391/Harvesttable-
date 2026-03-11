@@ -654,9 +654,52 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.codTip3':          'Order can be cancelled before dispatch',
 'checkout.codReadyAmount':   'Please have',
 'checkout.codReadyAmount2':  'ready to pay upon delivery.',
+  // ── Bot identity ──────────────────────────────────────────────────────────
+  'chat.botName':          'Basma',
+  'chat.headerSubtitle':   'HarvestTable · Always here',
+  'chat.footerPowered':    'Powered by',
+  'chat.footerBrand':      'HarvestTable AI',
+  'chat.footerTag':        '🌿 Organic & Ethical',
+  'chat.inputPlaceholder': 'Ask me anything…',
+  'chat.online':           'Online',
 
+  // ── Welcome message ───────────────────────────────────────────────────────
+  'chat.welcome':
+    "Marhaba! 🌿 I'm Basma, your HarvestTable guide.\n\nHow can I help you today? Whether it's finding the perfect tea, building a gift box, or tracking an order — I'm here.",
+
+  // ── Welcome quick replies ─────────────────────────────────────────────────
+  'chat.quick.browseProducts': '🌿 Browse products',
+  'chat.quick.buildGiftBox':   '🎁 Build a gift box',
+  'chat.quick.trackOrder':     '📦 Track my order',
+  'chat.quick.contactSupport': '✉️ Contact support',
+
+  // ── Other quick replies ───────────────────────────────────────────────────
+  'chat.quick.browseHerbs':    '🌿 Browse herbs',
+  'chat.quick.browseTeas':     '☕ Browse teas',
+  'chat.quick.browseSpices':   '🌶 Browse spices',
+  'chat.quick.openGiftBuilder':'🎁 Open Gift Builder',
+  'chat.quick.giftBoxes':      '🎁 Gift boxes',
+  'chat.quick.myOrder':        '📦 My order',
+  'chat.quick.myProfile':      '🔑 My profile',
+  'chat.quick.logIn':          '🔑 Log in',
+  'chat.quick.signUp':         '📝 Sign up',
+  'chat.quick.contactUs':      '✉️ Contact us',
+  'chat.quick.goToContact':    '✉️ Go to Contact page',
+  'chat.quick.aboutUs':        '📖 About us',
+  'chat.quick.shippingInfo':   '📄 Shipping info',
+  'chat.quick.returnsPolicy':  '📄 Returns policy',
+  'chat.quick.privacyPolicy':  '📄 Privacy policy',
+  'chat.quick.termsOfService': '📄 Terms of service',
+
+  // ── Error fallback ────────────────────────────────────────────────────────
+  'chat.errorMsg':
+    "Oops — something went wrong 😔 Please try again or reach us at support@harvesttable.com.",
+
+  // ── Scroll / UI ───────────────────────────────────────────────────────────
+  'chat.fabLabel': 'Open chat',
+  'chat.close':    'Close chat',
+  'chat.discover': 'Discover',
 },
-
   // ════════════════════════════════════════════════════════════════════════════
   fr: {
     // ── Navbar ──────────────────────────────────────────────────────────────
@@ -1258,6 +1301,46 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.codTip3':          'La commande peut être annulée avant expédition',
 'checkout.codReadyAmount':   'Veuillez préparer',
 'checkout.codReadyAmount2':  'à payer à la livraison.',
+  'chat.botName':          'Basma',
+  'chat.headerSubtitle':   'HarvestTable · Toujours là',
+  'chat.footerPowered':    'Propulsé par',
+  'chat.footerBrand':      'HarvestTable AI',
+  'chat.footerTag':        '🌿 Bio & Éthique',
+  'chat.inputPlaceholder': 'Posez-moi une question…',
+  'chat.online':           'En ligne',
+
+  'chat.welcome':
+    "Marhaba ! 🌿 Je suis Basma, votre guide HarvestTable.\n\nComment puis-je vous aider aujourd'hui ? Que ce soit pour trouver le thé parfait, créer un coffret cadeau ou suivre une commande — je suis là.",
+
+  'chat.quick.browseProducts': '🌿 Parcourir les produits',
+  'chat.quick.buildGiftBox':   '🎁 Créer un coffret',
+  'chat.quick.trackOrder':     '📦 Suivre ma commande',
+  'chat.quick.contactSupport': '✉️ Contacter le support',
+
+  'chat.quick.browseHerbs':    '🌿 Parcourir les herbes',
+  'chat.quick.browseTeas':     '☕ Parcourir les thés',
+  'chat.quick.browseSpices':   '🌶 Parcourir les épices',
+  'chat.quick.openGiftBuilder':'🎁 Ouvrir le créateur de coffret',
+  'chat.quick.giftBoxes':      '🎁 Coffrets cadeaux',
+  'chat.quick.myOrder':        '📦 Ma commande',
+  'chat.quick.myProfile':      '🔑 Mon profil',
+  'chat.quick.logIn':          '🔑 Se connecter',
+  'chat.quick.signUp':         '📝 S\'inscrire',
+  'chat.quick.contactUs':      '✉️ Nous contacter',
+  'chat.quick.goToContact':    '✉️ Page de contact',
+  'chat.quick.aboutUs':        '📖 À propos',
+  'chat.quick.shippingInfo':   '📄 Infos livraison',
+  'chat.quick.returnsPolicy':  '📄 Politique de retour',
+  'chat.quick.privacyPolicy':  '📄 Politique de confidentialité',
+  'chat.quick.termsOfService': '📄 Conditions d\'utilisation',
+
+  'chat.errorMsg':
+    "Oups — une erreur s'est produite 😔 Réessayez ou contactez-nous à support@harvesttable.com.",
+
+  'chat.fabLabel': 'Ouvrir le chat',
+  'chat.close':    'Fermer le chat',
+  'chat.discover': 'Découvrir',
+
 },
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1858,8 +1941,50 @@ const translations: Record<LangCode, Record<string, string>> = {
 'checkout.codTip3':          'يمكن إلغاء الطلب قبل الشحن',
 'checkout.codReadyAmount':   'يرجى تجهيز',
 'checkout.codReadyAmount2':  'للدفع عند الاستلام.',
+
+  'chat.botName':          'بسمة',
+  'chat.headerSubtitle':   'هارفيست تيبل · دائماً هنا',
+  'chat.footerPowered':    'مشغّل بواسطة',
+  'chat.footerBrand':      'هارفيست تيبل AI',
+  'chat.footerTag':        '🌿 عضوي وأخلاقي',
+  'chat.inputPlaceholder': 'اسألني أي شيء…',
+  'chat.online':           'متصل',
+
+  'chat.welcome':
+    "مرحبا! 🌿 أنا بسمة، مرشدتك في هارفيست تيبل.\n\nكيف يمكنني مساعدتك اليوم؟ سواء كان البحث عن الشاي المثالي أو بناء صندوق هدايا أو تتبع طلب — أنا هنا.",
+
+  'chat.quick.browseProducts': '🌿 تصفح المنتجات',
+  'chat.quick.buildGiftBox':   '🎁 بناء صندوق هدايا',
+  'chat.quick.trackOrder':     '📦 تتبع طلبي',
+  'chat.quick.contactSupport': '✉️ تواصل مع الدعم',
+
+  'chat.quick.browseHerbs':    '🌿 تصفح الأعشاب',
+  'chat.quick.browseTeas':     '☕ تصفح الشاي',
+  'chat.quick.browseSpices':   '🌶 تصفح التوابل',
+  'chat.quick.openGiftBuilder':'🎁 فتح صانع الهدايا',
+  'chat.quick.giftBoxes':      '🎁 صناديق الهدايا',
+  'chat.quick.myOrder':        '📦 طلبي',
+  'chat.quick.myProfile':      '🔑 ملفي الشخصي',
+  'chat.quick.logIn':          '🔑 تسجيل الدخول',
+  'chat.quick.signUp':         '📝 إنشاء حساب',
+  'chat.quick.contactUs':      '✉️ تواصل معنا',
+  'chat.quick.goToContact':    '✉️ صفحة التواصل',
+  'chat.quick.aboutUs':        '📖 من نحن',
+  'chat.quick.shippingInfo':   '📄 معلومات الشحن',
+  'chat.quick.returnsPolicy':  '📄 سياسة الإرجاع',
+  'chat.quick.privacyPolicy':  '📄 سياسة الخصوصية',
+  'chat.quick.termsOfService': '📄 شروط الخدمة',
+
+  'chat.errorMsg':
+    "عذراً — حدث خطأ ما 😔 حاول مجدداً أو تواصل معنا على support@harvesttable.com.",
+
+  'chat.fabLabel': 'فتح الدردشة',
+  'chat.close':    'إغلاق الدردشة',
+  'chat.discover': 'اكتشف',
 },
+
 }
+
 
 interface LangCtxType {
   lang: LangCode

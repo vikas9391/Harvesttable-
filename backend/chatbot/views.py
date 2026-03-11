@@ -24,6 +24,18 @@ def _get_ip(request: Request) -> str | None:
     return xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR')
 
 
+def _parse_lang(raw: Any) -> str:
+    """
+    Normalise the lang value sent by the frontend.
+    Accepts:  'en', 'fr', 'ar', 'en-US', 'fr-FR', None, ''
+    Returns:  'en' | 'fr' | 'ar'   (defaults to 'en')
+    """
+    if not raw:
+        return 'en'
+    code = str(raw).lower().split('-')[0].strip()
+    return code if code in ('en', 'fr', 'ar') else 'en'
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/chatbot/chat/
 # ─────────────────────────────────────────────────────────────────────────────
@@ -34,14 +46,18 @@ def chat(request: Request) -> Response:
     if not ser.is_valid():
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Cast to dict so Pylance understands the key access
     data: dict[str, Any] = dict(ser.validated_data)
 
-    user_message: str  = str(data['message']).strip()
+    user_message: str      = str(data['message']).strip()
     session_id: int | None = data.get('session_id')
-    anonymous_id: str  = str(data.get('anonymous_id') or '')
-    user_name: str     = str(data.get('user_name') or '')
-    user_email: str    = str(data.get('user_email') or '')
+    anonymous_id: str      = str(data.get('anonymous_id') or '')
+    user_name: str         = str(data.get('user_name') or '')
+    user_email: str        = str(data.get('user_email') or '')
+
+    # ★ Read language from the validated payload
+    # SendMessageSerializer must include lang as an optional CharField (see note below)
+    # Falls back to request.data directly in case the serializer field is missing
+    lang: str = _parse_lang(data.get('lang') or request.data.get('lang'))
 
     # ── Resolve or create session ─────────────────────────────────────────
     session: ChatSession | None = None
@@ -67,6 +83,7 @@ def chat(request: Request) -> Response:
                     user_email=request.user.email or user_email,
                     ip_address=_get_ip(request),
                     user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                    lang=lang,                          # ★ set on create
                 )
 
         elif anonymous_id:
@@ -77,6 +94,7 @@ def chat(request: Request) -> Response:
                     'user_email': user_email,
                     'ip_address': _get_ip(request),
                     'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                    'lang':       lang,                 # ★ set on create
                 },
             )
             if not created:
@@ -87,20 +105,30 @@ def chat(request: Request) -> Response:
                 if user_email and not session.user_email:
                     session.user_email = user_email
                     needs_save = True
+                # ★ Always sync lang in case the user switched language mid-session
+                if session.lang != lang:
+                    session.lang = lang
+                    needs_save = True
                 if needs_save:
-                    session.save(update_fields=['user_name', 'user_email'])
+                    session.save(update_fields=['user_name', 'user_email', 'lang'])
 
         else:
             session = ChatSession.objects.create(
                 ip_address=_get_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                lang=lang,                              # ★ set on create
             )
+    else:
+        # Session found by session_id — sync lang if it changed
+        if session.lang != lang:
+            session.lang = lang
+            session.save(update_fields=['lang'])
 
     # ── Save user message ─────────────────────────────────────────────────
     ChatMessage.objects.create(session=session, role='user', text=user_message)
 
-    # ── Generate rule-based reply ─────────────────────────────────────────
-    result: dict[str, Any] = get_reply(user_message)
+    # ── Generate multilingual rule-based reply ★ ──────────────────────────
+    result: dict[str, Any] = get_reply(user_message, lang=lang)
     reply: str             = str(result['reply'])
     quick: list[str]       = list(result.get('quick') or [])
 
@@ -112,7 +140,8 @@ def chat(request: Request) -> Response:
         {
             'session_id': session.pk,
             'reply':      reply,
-            'quick':      quick,
+            'quick':      quick,        # i18n keys, e.g. 'chat.quick.browseProducts'
+            'lang':       lang,         # echo back so frontend can verify
             'message_id': bot_msg.pk,
         },
         status=status.HTTP_200_OK,
@@ -209,6 +238,11 @@ def admin_sessions(request: Request) -> Response:
     if resolved_param is not None:
         qs = qs.filter(resolved=resolved_param.lower() == 'true')
 
+    # ★ Filter by language if provided  e.g. ?lang=ar
+    lang_param = request.query_params.get('lang', '').strip().lower()
+    if lang_param in ('en', 'fr', 'ar'):
+        qs = qs.filter(lang=lang_param)
+
     search = request.query_params.get('search', '').strip()
     if search:
         qs = qs.filter(
@@ -259,4 +293,9 @@ def admin_stats(request: Request) -> Response:
         'today_sessions': ChatSession.objects.filter(created_at__date=now.date()).count(),
         'week_sessions':  ChatSession.objects.filter(created_at__gte=week_ago).count(),
         'total_messages': ChatMessage.objects.count(),
+        # ★ Per-language breakdown for admin dashboard
+        'sessions_by_lang': {
+            lang: ChatSession.objects.filter(lang=lang).count()
+            for lang in ('en', 'fr', 'ar')
+        },
     })
