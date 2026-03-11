@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'users',
     "admin_panel",
     "chatbot",
+    'contact',
 ]
 
 SESSION_COOKIE_SAMESITE = 'Lax'
@@ -45,6 +46,18 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'harvesttable.urls'
+
+EMAIL_BACKEND      = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST         = 'smtp.gmail.com'        
+EMAIL_PORT         = 587
+EMAIL_USE_TLS      = True
+EMAIL_HOST_USER    = 'vikas93912@gmail.com'
+EMAIL_HOST_PASSWORD = 'qibp gjrb pmee mnek'
+DEFAULT_FROM_EMAIL = 'HarvestTable <noreply@harvesttable.com>'
+
+CONTACT_STAFF_EMAIL = 'support@harvesttable.com'
+
+BRAND_NAME = 'HarvestTable'
 
 TEMPLATES = [
     {

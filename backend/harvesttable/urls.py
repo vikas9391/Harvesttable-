@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/users/', include('users.urls')),
     path("api/settings/",  include("admin_panel.urls")),
     path("api/chatbot/",  include("chatbot.urls")),
+    path('api/contact/', include('contact.urls', namespace='contact')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
