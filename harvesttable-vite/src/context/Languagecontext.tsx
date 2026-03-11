@@ -699,6 +699,66 @@ const translations: Record<LangCode, Record<string, string>> = {
   'chat.fabLabel': 'Open chat',
   'chat.close':    'Close chat',
   'chat.discover': 'Discover',
+    "contact.admin.title":              "Contact Messages",
+  "contact.admin.totalMessages":      "total messages",
+  "contact.admin.today":              "today",
+  "contact.admin.thisWeek":           "this week",
+  "contact.admin.noFound":            "No messages found",
+  "contact.admin.page":               "Page",
+  "contact.admin.prev":               "Prev",
+  "contact.admin.next":               "Next",
+
+  // Stats cards
+  "contact.admin.stats.total":        "Total Messages",
+  "contact.admin.stats.new":          "New",
+  "contact.admin.stats.inProgress":   "In Progress",
+  "contact.admin.stats.resolved":     "Resolved",
+
+  // Filters
+  "contact.admin.filter.allStatus":   "All Statuses",
+  "contact.admin.filter.new":         "New",
+  "contact.admin.filter.inProgress":  "In Progress",
+  "contact.admin.filter.resolved":    "Resolved",
+  "contact.admin.filter.spam":        "Spam",
+  "contact.admin.filter.allLangs":    "All Languages",
+
+  // Table columns
+  "contact.admin.col.sender":         "Sender",
+  "contact.admin.col.subject":        "Subject",
+  "contact.admin.col.status":         "Status",
+  "contact.admin.col.lang":           "Lang",
+  "contact.admin.col.date":           "Date",
+
+  // Modal
+  "contact.admin.message":            "Message",
+  "contact.admin.manage":             "Manage",
+  "contact.admin.status":             "Status",
+  "contact.admin.note":               "Internal Note",
+  "contact.admin.notePlaceholder":    "Add an internal note...",
+  "contact.admin.save":               "Save Changes",
+  "contact.admin.saving":             "Saving...",
+  "contact.admin.delete":             "Delete",
+  "contact.admin.confirm":            "Confirm Delete",
+  "admin.contact":                    "Contact",
+
+  // Forgot password modal
+  "login.forgot.label":    "Account Recovery",
+  "login.forgot.title":    "Reset Password",
+  "login.forgot.desc":     "Enter the email address linked to your account and we'll send you a reset link.",
+  "login.forgot.cancel":   "Cancel",
+  "login.forgot.submit":   "Send Reset Link",
+  "login.forgot.sending":  "Sending...",
+  "login.forgot.sentTitle":"Check your inbox",
+  "login.forgot.sentDesc": "We sent a password reset link to",
+  "login.forgot.done":     "Done",
+
+  // Legal modal
+  "signup.legal.label":       "Legal",
+  "signup.legal.termsTitle":  "Terms of Service",
+  "signup.legal.privacyTitle":"Privacy Policy",
+  "signup.legal.close":       "Close",
+  "signup.legal.accept":      "Accept & Continue",
+
 },
   // ════════════════════════════════════════════════════════════════════════════
   fr: {
@@ -1340,11 +1400,79 @@ const translations: Record<LangCode, Record<string, string>> = {
   'chat.fabLabel': 'Ouvrir le chat',
   'chat.close':    'Fermer le chat',
   'chat.discover': 'Découvrir',
+    "contact.admin.title":              "Messages de Contact",
+  "contact.admin.totalMessages":      "messages au total",
+  "contact.admin.today":              "aujourd'hui",
+  "contact.admin.thisWeek":           "cette semaine",
+  "contact.admin.noFound":            "Aucun message trouvé",
+  "contact.admin.page":               "Page",
+  "contact.admin.prev":               "Préc.",
+  "contact.admin.next":               "Suiv.",
 
+  "contact.admin.stats.total":        "Total Messages",
+  "contact.admin.stats.new":          "Nouveaux",
+  "contact.admin.stats.inProgress":   "En Cours",
+  "contact.admin.stats.resolved":     "Résolus",
+
+  "contact.admin.filter.allStatus":   "Tous les Statuts",
+  "contact.admin.filter.new":         "Nouveau",
+  "contact.admin.filter.inProgress":  "En Cours",
+  "contact.admin.filter.resolved":    "Résolu",
+  "contact.admin.filter.spam":        "Spam",
+  "contact.admin.filter.allLangs":    "Toutes les Langues",
+
+  "contact.admin.col.sender":         "Expéditeur",
+  "contact.admin.col.subject":        "Sujet",
+  "contact.admin.col.status":         "Statut",
+  "contact.admin.col.lang":           "Langue",
+  "contact.admin.col.date":           "Date",
+
+  "contact.admin.message":            "Message",
+  "contact.admin.manage":             "Gérer",
+  "contact.admin.status":             "Statut",
+  "contact.admin.note":               "Note Interne",
+  "contact.admin.notePlaceholder":    "Ajouter une note interne...",
+  "contact.admin.save":               "Enregistrer",
+  "contact.admin.saving":             "Enregistrement...",
+  "contact.admin.delete":             "Supprimer",
+  "contact.admin.confirm":            "Confirmer",
+
+  "admin.contact":                    "Contact",
+"login.forgot.label":    "Récupération de compte",
+  "login.forgot.title":    "Réinitialiser le mot de passe",
+  "login.forgot.desc":     "Entrez l'adresse e-mail liée à votre compte et nous vous enverrons un lien de réinitialisation.",
+  "login.forgot.cancel":   "Annuler",
+  "login.forgot.submit":   "Envoyer le lien",
+  "login.forgot.sending":  "Envoi...",
+  "login.forgot.sentTitle":"Vérifiez votre boîte mail",
+  "login.forgot.sentDesc": "Nous avons envoyé un lien de réinitialisation à",
+  "login.forgot.done":     "Terminé",
+
+  "signup.legal.label":       "Légal",
+  "signup.legal.termsTitle":  "Conditions d'utilisation",
+  "signup.legal.privacyTitle":"Politique de confidentialité",
+  "signup.legal.close":       "Fermer",
+  "signup.legal.accept":      "Accepter et continuer",
 },
 
   // ════════════════════════════════════════════════════════════════════════════
   ar: {
+      "login.forgot.label":    "استعادة الحساب",
+  "login.forgot.title":    "إعادة تعيين كلمة المرور",
+  "login.forgot.desc":     "أدخل عنوان البريد الإلكتروني المرتبط بحسابك وسنرسل لك رابط إعادة التعيين.",
+  "login.forgot.cancel":   "إلغاء",
+  "login.forgot.submit":   "إرسال الرابط",
+  "login.forgot.sending":  "جارٍ الإرسال...",
+  "login.forgot.sentTitle":"تحقق من بريدك الوارد",
+  "login.forgot.sentDesc": "أرسلنا رابط إعادة تعيين كلمة المرور إلى",
+  "login.forgot.done":     "تم",
+
+  "signup.legal.label":       "قانوني",
+  "signup.legal.termsTitle":  "شروط الخدمة",
+  "signup.legal.privacyTitle":"سياسة الخصوصية",
+  "signup.legal.close":       "إغلاق",
+  "signup.legal.accept":      "قبول والمتابعة",
+
     // ── Navbar ──────────────────────────────────────────────────────────────
     'nav.brandName': 'هارفيست تيبل',
     'nav.home': 'الرئيسية', 'nav.shop': 'المتجر', 'nav.giftBuilder': 'صمّم هديتك',
@@ -1981,6 +2109,45 @@ const translations: Record<LangCode, Record<string, string>> = {
   'chat.fabLabel': 'فتح الدردشة',
   'chat.close':    'إغلاق الدردشة',
   'chat.discover': 'اكتشف',
+  "contact.admin.title":              "رسائل التواصل",
+  "contact.admin.totalMessages":      "رسالة إجمالاً",
+  "contact.admin.today":              "اليوم",
+  "contact.admin.thisWeek":           "هذا الأسبوع",
+  "contact.admin.noFound":            "لا توجد رسائل",
+  "contact.admin.page":               "صفحة",
+  "contact.admin.prev":               "السابق",
+  "contact.admin.next":               "التالي",
+
+  "contact.admin.stats.total":        "إجمالي الرسائل",
+  "contact.admin.stats.new":          "جديدة",
+  "contact.admin.stats.inProgress":   "قيد المعالجة",
+  "contact.admin.stats.resolved":     "محلولة",
+
+  "contact.admin.filter.allStatus":   "كل الحالات",
+  "contact.admin.filter.new":         "جديد",
+  "contact.admin.filter.inProgress":  "قيد المعالجة",
+  "contact.admin.filter.resolved":    "محلول",
+  "contact.admin.filter.spam":        "سبام",
+  "contact.admin.filter.allLangs":    "كل اللغات",
+
+  "contact.admin.col.sender":         "المُرسِل",
+  "contact.admin.col.subject":        "الموضوع",
+  "contact.admin.col.status":         "الحالة",
+  "contact.admin.col.lang":           "اللغة",
+  "contact.admin.col.date":           "التاريخ",
+
+  "contact.admin.message":            "الرسالة",
+  "contact.admin.manage":             "الإدارة",
+  "contact.admin.status":             "الحالة",
+  "contact.admin.note":               "ملاحظة داخلية",
+  "contact.admin.notePlaceholder":    "أضف ملاحظة داخلية...",
+  "contact.admin.save":               "حفظ التغييرات",
+  "contact.admin.saving":             "جارٍ الحفظ...",
+  "contact.admin.delete":             "حذف",
+  "contact.admin.confirm":            "تأكيد الحذف",
+
+  "admin.contact":                    "التواصل",
+
 },
 
 }

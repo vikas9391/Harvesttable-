@@ -23,6 +23,7 @@ import AdminProducts from './pages/admin/AdminProducts'
 import AdminOrders from './pages/admin/AdminOrders'
 import AdminCustomers from './pages/admin/AdminCustomers'
 import AdminSettings from './pages/admin/AdminSettings'
+import AdminContactMessages from './pages/admin/Admincontactmessages'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/signupPage'
 import ProfilePage from './pages/Profilepage'
@@ -64,6 +65,7 @@ function App() {
                     <Route path="products" element={<AdminProducts />} />
                     <Route path="orders" element={<AdminOrders />} />
                     <Route path="customers" element={<AdminCustomers />} />
+                    <Route path="contact" element={<AdminContactMessages />} />
                     <Route path="settings" element={<AdminSettings />} />
                   </Route>
                 </Routes>

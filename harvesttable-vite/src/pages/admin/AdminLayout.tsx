@@ -29,6 +29,12 @@ const IconCustomers = () => (
       d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
   </svg>
 );
+const IconContact = () => (
+  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6}
+      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+  </svg>
+);
 const IconSettings = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6}
@@ -192,7 +198,7 @@ const AdminLayout: React.FC = () => {
   const isActive = (to: string) =>
     to === '/admin' ? location.pathname === '/admin' : location.pathname.startsWith(to);
 
-  const NavLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => {
+  const NavLink = ({ to, icon, label, badge }: { to: string; icon: React.ReactNode; label: string; badge?: number }) => {
     const active = isActive(to);
     return (
       <Link
@@ -211,7 +217,17 @@ const AdminLayout: React.FC = () => {
         onMouseLeave={e => { if (!active) { const el = e.currentTarget as HTMLElement; el.style.backgroundColor = 'transparent'; el.style.color = C.muted; } }}
       >
         {icon}
-        {label}
+        <span style={{ flex: 1 }}>{label}</span>
+        {badge != null && badge > 0 && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, minWidth: 18, height: 18,
+            padding: '0 5px', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: active ? 'rgba(122,74,40,0.18)' : 'rgba(50,90,160,0.12)',
+            color: active ? '#7a4a28' : '#3a5a9a',
+          }}>
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -241,11 +257,12 @@ const AdminLayout: React.FC = () => {
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: 10 }}>
+      <nav style={{ flex: 1, padding: 10, overflowY: 'auto' }}>
         <NavLink to="/admin"           icon={<IconDashboard />} label={t('admin.dashboard')} />
         <NavLink to="/admin/products"  icon={<IconProducts />}  label={t('admin.products')}  />
         <NavLink to="/admin/orders"    icon={<IconOrders />}    label={t('admin.orders')}    />
         <NavLink to="/admin/customers" icon={<IconCustomers />} label={t('admin.customers')} />
+        <NavLink to="/admin/contact"   icon={<IconContact />}   label={t('admin.contact')}   />
         <NavLink to="/admin/settings"  icon={<IconSettings />}  label={t('nav.settings')}    />
       </nav>
 
