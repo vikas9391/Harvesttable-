@@ -15,7 +15,10 @@ cloudinary.config(
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY')
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# Default to False in production — set DEBUG=True in .env for local dev only
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
@@ -119,18 +122,41 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# -----------------------------------------------------------------------
+# HTTPS / Security — applied only in production (when DEBUG=False)
+# Render terminates SSL at the edge and forwards via X-Forwarded-Proto
+# -----------------------------------------------------------------------
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000          # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# -----------------------------------------------------------------------
+# CORS — list every frontend origin that needs to call the API
+# -----------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = [
-    "https://harvesttable.onrender.com",
+    "https://harvesttable.onrender.com",    # production frontend
+    "http://localhost:5173",                 # local Vite dev server
+    "http://127.0.0.1:5173",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# -----------------------------------------------------------------------
+# CSRF — must include every origin that submits forms / session requests
+# -----------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
     "https://harvesttable.onrender.com",
     "http://harvesttable.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
-# DRF
+
+# -----------------------------------------------------------------------
+# Django REST Framework
+# -----------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
