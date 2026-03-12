@@ -1,3 +1,5 @@
+// src/types.ts
+
 export interface Product {
   id:              number
   name:            string
@@ -7,7 +9,7 @@ export interface Product {
   original_price?: string
   category:        string
   origin:          string
-  imageType?:      string        
+  imageType?:      string
   image_url?:      string | null
   badge?:          string
 
@@ -47,12 +49,48 @@ export interface CartItem {
 }
 
 export interface CartContextType {
-  items:          CartItem[]
-  addToCart:      (product: Product) => void
-  removeFromCart: (productId: number) => void
-  updateQuantity: (productId: number, quantity: number) => void
-  clearCart:      () => void
-  totalItems:     number
-  totalPrice:     number
-  syncing:        boolean
+  items:               CartItem[]
+  addToCart:           (product: Product) => void
+  removeFromCart:      (productId: number) => void
+  updateQuantity:      (productId: number, quantity: number) => void
+  clearCart:           () => void
+  totalItems:          number
+  totalPrice:          number
+  syncing:             boolean
+}
+
+// ── Order types (used in ProfilePage and CheckoutPage) ────────────────────────
+export interface OrderItem {
+  name:     string
+  quantity: number
+  price:    string
+}
+
+export interface Order {
+  id:           number
+  order_number: string
+  status:       string
+  total:        string
+  created_at:   string
+  items?:       OrderItem[]
+}
+
+// ── Notification preferences (used in ProfilePage settings) ──────────────────
+export interface NotifPrefs {
+  orderUpdates:   boolean
+  promotions:     boolean
+  newArrivals:    boolean
+  wishlistAlerts: boolean
+}
+
+// ── Gift box types (used in CartContext / CheckoutPage / GiftBuilderPage) ─────
+export interface GiftBoxItem {
+  product:  Product
+  quantity: number
+}
+
+export interface GiftBox {
+  id:       string
+  items:    GiftBoxItem[]
+  message?: string
 }
