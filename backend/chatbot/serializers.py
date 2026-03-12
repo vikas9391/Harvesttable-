@@ -1,7 +1,4 @@
 # chatbot/serializers.py
-# Only SendMessageSerializer is changed — lang field added.
-# Keep all your other serializers exactly as they were.
-
 from rest_framework import serializers
 from .models import ChatSession, ChatMessage
 
@@ -12,7 +9,7 @@ class SendMessageSerializer(serializers.Serializer):
     anonymous_id = serializers.CharField(required=False, allow_blank=True, default='')
     user_name    = serializers.CharField(required=False, allow_blank=True, default='')
     user_email   = serializers.EmailField(required=False, allow_blank=True, default='')
-    # ★ NEW — language sent by the React frontend ('en' | 'fr' | 'ar')
+    # Language sent by the React frontend ('en' | 'fr' | 'ar')
     lang         = serializers.CharField(required=False, allow_blank=True, default='en', max_length=10)
 
 
@@ -34,7 +31,7 @@ class ChatSessionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'anonymous_id',
             'user_name', 'user_email',
-            'lang',                         # ★ included
+            'lang',
             'resolved',
             'ip_address', 'user_agent',
             'created_at', 'updated_at',
@@ -50,7 +47,7 @@ class ChatSessionListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'anonymous_id',
             'user_name', 'user_email',
-            'lang',                        
+            'lang',
             'resolved', 'message_count',
             'created_at', 'updated_at',
         ]

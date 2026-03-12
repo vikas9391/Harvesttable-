@@ -154,7 +154,7 @@ const Contact: React.FC = () => {
             <div style={{ ...f(0.05), display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <span style={{ display: "block", width: 28, height: 1, background: "linear-gradient(to right,#70a8d4,transparent)" }}/>
               <p style={{ fontSize: 10, letterSpacing: "0.42em", textTransform: "uppercase", fontWeight: 700, color: "#70a8d4", margin: 0 }}>
-                {t("contact.hero.eyebrow")}
+                {t("nav.brandName")}
               </p>
             </div>
             <h1 style={{ ...f(0.12), fontFamily: "'Cormorant Garamond',serif", fontSize: "clamp(34px,6vw,62px)", fontWeight: 600, color: "#faf2e8", lineHeight: 1.08, margin: "0 0 16px" }}>

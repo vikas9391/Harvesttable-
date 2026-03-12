@@ -1,7 +1,9 @@
 # chatbot/views.py
 from typing import Any
+from datetime import timedelta
 
 from django.db import models as db_models
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser
@@ -26,9 +28,9 @@ def _get_ip(request: Request) -> str | None:
 
 def _parse_lang(raw: Any) -> str:
     """
-    Normalise the lang value sent by the frontend.
-    Accepts:  'en', 'fr', 'ar', 'en-US', 'fr-FR', None, ''
-    Returns:  'en' | 'fr' | 'ar'   (defaults to 'en')
+    Normalise lang value from the frontend.
+    Accepts 'en', 'fr', 'ar', 'en-US', 'fr-FR', None, ''
+    Returns 'en' | 'fr' | 'ar'  (defaults to 'en')
     """
     if not raw:
         return 'en'
@@ -53,11 +55,7 @@ def chat(request: Request) -> Response:
     anonymous_id: str      = str(data.get('anonymous_id') or '')
     user_name: str         = str(data.get('user_name') or '')
     user_email: str        = str(data.get('user_email') or '')
-
-    # ★ Read language from the validated payload
-    # SendMessageSerializer must include lang as an optional CharField (see note below)
-    # Falls back to request.data directly in case the serializer field is missing
-    lang: str = _parse_lang(data.get('lang') or request.data.get('lang'))
+    lang: str              = _parse_lang(data.get('lang') or request.data.get('lang'))
 
     # ── Resolve or create session ─────────────────────────────────────────
     session: ChatSession | None = None
@@ -83,7 +81,7 @@ def chat(request: Request) -> Response:
                     user_email=request.user.email or user_email,
                     ip_address=_get_ip(request),
                     user_agent=request.META.get('HTTP_USER_AGENT', ''),
-                    lang=lang,                          # ★ set on create
+                    lang=lang,
                 )
 
         elif anonymous_id:
@@ -94,29 +92,31 @@ def chat(request: Request) -> Response:
                     'user_email': user_email,
                     'ip_address': _get_ip(request),
                     'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-                    'lang':       lang,                 # ★ set on create
+                    'lang':       lang,
                 },
             )
             if not created:
-                needs_save = False
+                # Update any missing / changed fields
+                update_fields = []
                 if user_name and not session.user_name:
                     session.user_name = user_name
-                    needs_save = True
+                    update_fields.append('user_name')
                 if user_email and not session.user_email:
                     session.user_email = user_email
-                    needs_save = True
-                # ★ Always sync lang in case the user switched language mid-session
+                    update_fields.append('user_email')
+                # Always sync lang — user may have switched language mid-session
                 if session.lang != lang:
                     session.lang = lang
-                    needs_save = True
-                if needs_save:
-                    session.save(update_fields=['user_name', 'user_email', 'lang'])
+                    update_fields.append('lang')
+                if update_fields:
+                    session.save(update_fields=update_fields)
 
         else:
+            # No user, no anonymous_id — create a bare session
             session = ChatSession.objects.create(
                 ip_address=_get_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
-                lang=lang,                              # ★ set on create
+                lang=lang,
             )
     else:
         # Session found by session_id — sync lang if it changed
@@ -127,7 +127,8 @@ def chat(request: Request) -> Response:
     # ── Save user message ─────────────────────────────────────────────────
     ChatMessage.objects.create(session=session, role='user', text=user_message)
 
-    # ── Generate multilingual rule-based reply ★ ──────────────────────────
+    # ── Generate multilingual reply ───────────────────────────────────────
+    # get_reply() is in responses.py — returns { 'reply': str, 'quick': [i18n_keys] }
     result: dict[str, Any] = get_reply(user_message, lang=lang)
     reply: str             = str(result['reply'])
     quick: list[str]       = list(result.get('quick') or [])
@@ -140,8 +141,8 @@ def chat(request: Request) -> Response:
         {
             'session_id': session.pk,
             'reply':      reply,
-            'quick':      quick,        # i18n keys, e.g. 'chat.quick.browseProducts'
-            'lang':       lang,         # echo back so frontend can verify
+            'quick':      quick,       # i18n keys — e.g. 'chat.quick.browseProducts'
+            'lang':       lang,        # echo back so frontend can verify
             'message_id': bot_msg.pk,
         },
         status=status.HTTP_200_OK,
@@ -156,16 +157,12 @@ def chat(request: Request) -> Response:
 def history(request: Request) -> Response:
     session_id_param   = request.query_params.get('session_id')
     anonymous_id_param = request.query_params.get('anonymous_id')
-
     session: ChatSession | None = None
 
     if session_id_param:
         session = ChatSession.objects.filter(pk=session_id_param).first()
         if not session:
-            return Response(
-                {'error': 'Session not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({'error': 'Session not found.'}, status=status.HTTP_404_NOT_FOUND)
 
     elif anonymous_id_param:
         session = ChatSession.objects.filter(anonymous_id=anonymous_id_param).first()
@@ -188,7 +185,7 @@ def history(request: Request) -> Response:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Authenticated non-staff users can only see their own sessions
+    # Non-staff users can only read their own sessions
     if (
         request.user.is_authenticated
         and not request.user.is_staff
@@ -219,10 +216,8 @@ def resolve_session(request: Request, pk: int) -> Response:
     if not ser.is_valid():
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    data: dict[str, Any] = dict(ser.validated_data)
-    session.resolved = bool(data['resolved'])
+    session.resolved = bool(ser.validated_data['resolved'])
     session.save(update_fields=['resolved'])
-
     return Response({'session_id': session.pk, 'resolved': session.resolved})
 
 
@@ -238,7 +233,6 @@ def admin_sessions(request: Request) -> Response:
     if resolved_param is not None:
         qs = qs.filter(resolved=resolved_param.lower() == 'true')
 
-    # ★ Filter by language if provided  e.g. ?lang=ar
     lang_param = request.query_params.get('lang', '').strip().lower()
     if lang_param in ('en', 'fr', 'ar'):
         qs = qs.filter(lang=lang_param)
@@ -251,10 +245,14 @@ def admin_sessions(request: Request) -> Response:
             | db_models.Q(anonymous_id__icontains=search)
         )
 
-    page      = max(int(request.query_params.get('page', 1)), 1)
-    page_size = min(int(request.query_params.get('page_size', 25)), 100)
-    start     = (page - 1) * page_size
-    total     = qs.count()
+    try:
+        page      = max(int(request.query_params.get('page', 1)), 1)
+        page_size = min(int(request.query_params.get('page_size', 25)), 100)
+    except (ValueError, TypeError):
+        page, page_size = 1, 25
+
+    start = (page - 1) * page_size
+    total = qs.count()
 
     return Response({
         'count':   total,
@@ -281,9 +279,6 @@ def admin_session_detail(request: Request, pk: int) -> Response:
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_stats(request: Request) -> Response:
-    from datetime import timedelta
-    from django.utils import timezone
-
     now      = timezone.now()
     week_ago = now - timedelta(days=7)
 
@@ -293,7 +288,6 @@ def admin_stats(request: Request) -> Response:
         'today_sessions': ChatSession.objects.filter(created_at__date=now.date()).count(),
         'week_sessions':  ChatSession.objects.filter(created_at__gte=week_ago).count(),
         'total_messages': ChatMessage.objects.count(),
-        # ★ Per-language breakdown for admin dashboard
         'sessions_by_lang': {
             lang: ChatSession.objects.filter(lang=lang).count()
             for lang in ('en', 'fr', 'ar')

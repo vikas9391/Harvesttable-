@@ -89,7 +89,7 @@ const Returns: React.FC = () => {
           <div style={{ position:"relative",zIndex:2,maxWidth:960,margin:"0 auto",padding:"80px 32px",width:"100%" }}>
             <div style={{ ...f(0.05),display:"flex",alignItems:"center",gap:12,marginBottom:14 }}>
               <span style={{ display:"block",width:28,height:1,background:"linear-gradient(to right,#a8d870,transparent)" }}/>
-              <p style={{ fontSize:10,letterSpacing:"0.42em",textTransform:"uppercase",fontWeight:700,color:"#a8d870",margin:0 }}>{t('returns.hero.eyebrow')}</p>
+              <p style={{ fontSize:10,letterSpacing:"0.42em",textTransform:"uppercase",fontWeight:700,color:"#a8d870",margin:0 }}>{t("nav.brandName")}</p>
             </div>
             <h1 style={{ ...f(0.12),fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(34px,6vw,62px)",fontWeight:600,color:"#faf2e8",lineHeight:1.08,margin:"0 0 16px" }}>{t('returns.hero.title')}</h1>
             <div style={{ ...f(0.18),height:2,width:60,background:"linear-gradient(90deg,#3a6028,#a8d870,#3a6028)",backgroundSize:"200% auto",animation:"shimmer 2.8s linear infinite",marginBottom:18 }}/>

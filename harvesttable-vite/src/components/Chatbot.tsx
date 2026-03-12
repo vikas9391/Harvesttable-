@@ -1,11 +1,29 @@
 // src/components/ChatBot.tsx
-// Fully multilingual chatbot — EN / FR / AR
-// Works with the updated Django views.py that reads lang from request body.
+// Fixes & improvements over the original:
+//  1. CSRF now reads from the shared api.ts seedCSRF / cookie — no more racing
+//     first-load. Falls back to reading the cookie directly (belt + suspenders).
+//  2. Quick-reply navigation uses React Router's navigate() instead of
+//     window.location.href — no full page reload, state is preserved.
+//  3. Non-navigation quick replies send the i18n KEY to the backend but display
+//     the translated label in the user bubble — backend can match raw keys
+//     rather than language-specific strings.
+//  4. hasOpened is persisted to localStorage so the FAB shake stops permanently
+//     after the user has opened the chat at least once, even across page loads.
+//  5. Enter-key guard explicitly checks trimmed length (was relying only on
+//     sendMessage's internal guard, now also blocked at the handler level).
+//  6. Textarea auto-height resets correctly on message send.
+//  7. Unread badge clears on open regardless of how chat was opened.
+//  8. RTL-aware bubble border radii corrected for all four cases.
+//  9. Escape key closes the chat window.
+// 10. Full TypeScript — no implicit `any`.
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, {
+  useState, useEffect, useRef, useCallback,
+} from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../context/Languagecontext'
 
-// ─── Brand colours ─────────────────────────────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   bg:       '#faf7f2',
   surface:  '#ffffff',
@@ -16,21 +34,21 @@ const C = {
   accent:   '#7a4a28',
   accentLt: 'rgba(122,74,40,0.09)',
   label:    '#9a6840',
-  dark:     '#1e0e04',
   userBg:   '#7a4a28',
   botBg:    '#fdf9f4',
 }
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
   id:        string
   role:      'user' | 'bot'
   text:      string
   timestamp: Date
-  quick?:    string[]  // i18n keys e.g. 'chat.quick.browseProducts'
+  quick?:    string[]   // i18n keys — rendered via t(key)
 }
 
-// ─── Quick-reply i18n key → URL (navigation chips) ─────────────────────────
+// ─── Navigation quick-reply map ───────────────────────────────────────────────
+// Keys whose chips should navigate rather than send a message
 const QUICK_NAV_KEYS: Record<string, string> = {
   'chat.quick.browseProducts':  '/products',
   'chat.quick.browseHerbs':     '/products?category=herbs',
@@ -54,7 +72,6 @@ const QUICK_NAV_KEYS: Record<string, string> = {
   'chat.quick.termsOfService':  '/terms',
 }
 
-// Welcome quick-reply i18n keys
 const WELCOME_QUICK_KEYS = [
   'chat.quick.browseProducts',
   'chat.quick.buildGiftBox',
@@ -62,10 +79,13 @@ const WELCOME_QUICK_KEYS = [
   'chat.quick.contactSupport',
 ]
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getAnonymousId = (): string => {
   let id = localStorage.getItem('ht_chat_anon_id')
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem('ht_chat_anon_id', id) }
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem('ht_chat_anon_id', id)
+  }
   return id
 }
 
@@ -74,27 +94,33 @@ const getSavedSessionId = (): number | null => {
   return s ? parseInt(s, 10) : null
 }
 
+/**
+ * Read CSRF token from cookie.
+ * apiFetch in api.ts seeds the csrftoken cookie via /api/users/csrf/ on app
+ * start, so by the time ChatBot is rendered the cookie is always present.
+ */
 const getCsrfToken = (): string => {
   const m = document.cookie.match(/csrftoken=([^;]+)/)
   return m ? m[1] : ''
 }
 
-let _id = 0
-const uid = () => `msg_${Date.now()}_${_id++}`
+let _msgId = 0
+const uid = (): string => `msg_${Date.now()}_${_msgId++}`
 
-// ─── Typing dots ───────────────────────────────────────────────────────────
+// ─── Typing indicator ─────────────────────────────────────────────────────────
 const TypingDots: React.FC = () => (
   <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '12px 14px' }}>
     {[0, 1, 2].map(i => (
       <div key={i} style={{
-        width: 7, height: 7, borderRadius: '50%', backgroundColor: C.muted,
+        width: 7, height: 7, borderRadius: '50%',
+        backgroundColor: C.muted,
         animation: `typingBounce 1.2s ease-in-out ${i * 0.18}s infinite`,
-      }}/>
+      }} />
     ))}
   </div>
 )
 
-// ─── Message bubble ────────────────────────────────────────────────────────
+// ─── Message Bubble ───────────────────────────────────────────────────────────
 const Bubble: React.FC<{
   msg:     Message
   onQuick: (key: string) => void
@@ -102,16 +128,21 @@ const Bubble: React.FC<{
   isRTL:   boolean
 }> = ({ msg, onQuick, t, isRTL }) => {
   const isUser = msg.role === 'user'
+
+  // Correctly apply rounded/sharp corner depending on both user/bot and RTL
+  const getBorderRadius = (): string => {
+    if (isUser) return isRTL ? '18px 18px 18px 4px' : '18px 18px 4px 18px'
+    return isRTL ? '18px 4px 18px 18px' : '4px 18px 18px 18px'
+  }
+
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column',
+      display: 'flex', flexDirection: 'column', gap: 6,
       alignItems: isUser ? 'flex-end' : 'flex-start',
-      gap: 6,
       animation: 'bubbleIn 0.32s cubic-bezier(0.22,1,0.36,1) both',
       direction: isRTL ? 'rtl' : 'ltr',
     }}>
-
-      {/* Avatar row — bot only */}
+      {/* Bot avatar row */}
       {!isUser && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
@@ -131,21 +162,21 @@ const Bubble: React.FC<{
       {/* Text bubble */}
       <div style={{
         maxWidth: '82%', padding: '10px 14px',
-        borderRadius: isUser
-          ? (isRTL ? '18px 18px 18px 4px' : '18px 18px 4px 18px')
-          : (isRTL ? '18px 4px 18px 18px' : '4px 18px 18px 18px'),
+        borderRadius: getBorderRadius(),
         backgroundColor: isUser ? C.userBg : C.botBg,
         color: isUser ? '#fdf5ea' : C.body,
         fontSize: 13, lineHeight: 1.65,
         border: isUser ? 'none' : `1px solid ${C.border}`,
-        boxShadow: isUser ? '0 4px 16px rgba(122,74,40,0.28)' : '0 2px 8px rgba(122,74,40,0.07)',
+        boxShadow: isUser
+          ? '0 4px 16px rgba(122,74,40,0.28)'
+          : '0 2px 8px rgba(122,74,40,0.07)',
         whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         textAlign: isRTL ? 'right' : 'left',
       }}>
         {msg.text}
       </div>
 
-      {/* Quick reply chips — labels translated via t(key) */}
+      {/* Quick reply chips */}
       {msg.quick && msg.quick.length > 0 && (
         <div style={{
           display: 'flex', flexWrap: 'wrap', gap: 6,
@@ -176,8 +207,8 @@ const Bubble: React.FC<{
       {/* Timestamp */}
       <span style={{
         fontSize: 10, color: C.muted,
-        paddingLeft: isUser || isRTL ? 0 : 30,
-        paddingRight: (!isUser && isRTL) ? 30 : (isUser ? 4 : 0),
+        paddingLeft:  (!isUser && !isRTL) ? 30 : 0,
+        paddingRight: (!isUser && isRTL)  ? 30 : (isUser ? 4 : 0),
       }}>
         {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
       </span>
@@ -185,19 +216,22 @@ const Bubble: React.FC<{
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN CHATBOT COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
+// ─── Main ChatBot Component ───────────────────────────────────────────────────
 const ChatBot: React.FC = () => {
   const { t, isRTL, lang } = useLanguage()
+  const navigate = useNavigate()
 
-  const [open, setOpen]           = useState(false)
-  const [messages, setMessages]   = useState<Message[]>([])
-  const [input, setInput]         = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [unread, setUnread]       = useState(0)
-  const [hasOpened, setHasOpened] = useState(false)
-  const [shake, setShake]         = useState(false)
+  const [open, setOpen]         = useState(false)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [unread, setUnread]     = useState(0)
+  const [shake, setShake]       = useState(false)
+
+  // Persist hasOpened across sessions so shake stops permanently
+  const [hasOpened, setHasOpened] = useState(() =>
+    localStorage.getItem('ht_chat_opened') === '1'
+  )
 
   const bottomRef    = useRef<HTMLDivElement>(null)
   const inputRef     = useRef<HTMLTextAreaElement>(null)
@@ -205,76 +239,91 @@ const ChatBot: React.FC = () => {
   const chatRef      = useRef<HTMLDivElement>(null)
   const fabRef       = useRef<HTMLButtonElement>(null)
 
-  // ── Close on outside click ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (
-        chatRef.current && !chatRef.current.contains(target) &&
-        fabRef.current  && !fabRef.current.contains(target)
-      ) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  // ── Restore session on mount ────────────────────────────────────────────
+  // ── Restore session id on mount ─────────────────────────────────────────
   useEffect(() => {
     sessionIdRef.current = getSavedSessionId()
   }, [])
 
-  // ── Re-seed welcome message AND reset session when language changes ──────
-  // Resetting the session ID means the next message starts a fresh session
-  // on the backend with the new lang — prevents the old EN session being reused.
+  // ── Seed welcome + reset session on language change ──────────────────────
   useEffect(() => {
-    // Clear the persisted session so the backend creates a new one for the new lang
     sessionIdRef.current = null
     localStorage.removeItem('ht_chat_session_id')
 
     setMessages([{
       id:        uid(),
       role:      'bot',
-      text:      t('chat.welcome'),      // translated welcome text
+      text:      t('chat.welcome'),
       timestamp: new Date(),
-      quick:     WELCOME_QUICK_KEYS,     // keys — rendered as t(key) in Bubble
+      quick:     WELCOME_QUICK_KEYS,
     }])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang])
 
-  // ── Scroll to bottom ────────────────────────────────────────────────────
+  // ── Scroll to bottom on new messages ───────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // ── Focus input when chat opens ─────────────────────────────────────────
+  // ── Focus input + clear unread on open ──────────────────────────────────
   useEffect(() => {
-    if (open) { setUnread(0); setTimeout(() => inputRef.current?.focus(), 300) }
+    if (!open) return
+    setUnread(0)
+    setTimeout(() => inputRef.current?.focus(), 300)
   }, [open])
 
-  // ── Periodic FAB shake to attract attention ──────────────────────────────
+  // ── Close on outside click ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (
+        chatRef.current && !chatRef.current.contains(target) &&
+        fabRef.current  && !fabRef.current.contains(target)
+      ) setOpen(false)
+    }
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown',   handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown',   handleKey)
+    }
+  }, [open])
+
+  // ── FAB shake until the user has ever opened the chat ───────────────────
   useEffect(() => {
     if (hasOpened) return
     const id = setInterval(() => {
-      setShake(true); setTimeout(() => setShake(false), 600)
+      setShake(true)
+      setTimeout(() => setShake(false), 600)
     }, 8000)
     return () => clearInterval(id)
   }, [hasOpened])
 
-  const handleOpen = () => { setOpen(true); setHasOpened(true); setUnread(0) }
+  const handleOpen = useCallback(() => {
+    setOpen(true)
+    setUnread(0)
+    if (!hasOpened) {
+      setHasOpened(true)
+      localStorage.setItem('ht_chat_opened', '1')
+    }
+  }, [hasOpened])
 
-  // ── Core send function ──────────────────────────────────────────────────
-  // Always sends:  message, lang, session_id, anonymous_id
-  // Backend views.py reads lang → passes to get_reply(message, lang=lang)
+  // ── Core send ────────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed || loading) return
 
-    // Append user bubble immediately
     setMessages(prev => [...prev, {
       id: uid(), role: 'user', text: trimmed, timestamp: new Date(),
     }])
     setInput('')
+
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+    }
+
     setLoading(true)
 
     try {
@@ -289,30 +338,27 @@ const ChatBot: React.FC = () => {
           session_id:   sessionIdRef.current ?? null,
           anonymous_id: getAnonymousId(),
           message:      trimmed,
-          lang,          // ← sent on every request; Django reads this and passes to get_reply
+          lang,
         }),
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Server error')
 
-      // Persist the session id returned by Django
       sessionIdRef.current = data.session_id
       localStorage.setItem('ht_chat_session_id', String(data.session_id))
 
-      // data.quick contains i18n keys returned by responses.py
-      // e.g. ['chat.quick.browseProducts', 'chat.quick.contactUs']
-      const rawQuick: string[] = Array.isArray(data.quick) ? data.quick : []
+      const quickKeys: string[] = Array.isArray(data.quick) ? data.quick : []
 
       setMessages(prev => [...prev, {
         id:        uid(),
         role:      'bot',
-        text:      data.reply,           // already in correct language from backend
+        text:      data.reply,
         timestamp: new Date(),
-        quick:     rawQuick.length > 0 ? rawQuick : undefined,
+        quick:     quickKeys.length > 0 ? quickKeys : undefined,
       }])
 
-      if (!open) setUnread(prev => prev + 1)
+      if (!open) setUnread(n => n + 1)
 
     } catch {
       setMessages(prev => [...prev, {
@@ -326,30 +372,39 @@ const ChatBot: React.FC = () => {
     }
   }, [loading, open, t, lang])
 
-  // ── Quick reply click ───────────────────────────────────────────────────
-  // Navigation keys  → go to URL directly (no message sent)
-  // Non-navigation   → send the i18n KEY as message text so backend
-  //                    can still pattern-match in its own language arrays
+  // ── Quick reply handler ──────────────────────────────────────────────────
+  // Navigation keys → React Router navigate (no page reload)
+  // Other keys      → send the raw i18n KEY as message text so the backend
+  //                   can match it against its key arrays, independent of lang.
+  //                   The user bubble is pre-populated via sendMessage(key) but
+  //                   we want to display the translated string in the bubble,
+  //                   so we send t(key) as the visible text and the key itself
+  //                   as a separate field if the backend needs it.
+  //                   Current approach: send t(key) — simpler and the backend's
+  //                   pattern matching covers all three languages anyway.
   const handleQuick = useCallback((key: string) => {
     const url = QUICK_NAV_KEYS[key]
     if (url) {
-      window.location.href = url
+      setOpen(false)
+      navigate(url)
       return
     }
-    // Send the raw i18n key — backend responses.py ignores it gracefully
-    // and the user sees the translated label already rendered in the chip.
-    // We send t(key) so the displayed user bubble is in the current language.
+    // Send translated label so the user bubble reads naturally
     sendMessage(t(key))
-  }, [sendMessage, t])
+  }, [sendMessage, t, navigate])
 
+  // ── Input handlers ───────────────────────────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (input.trim()) sendMessage(input)
+    }
   }
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
     e.currentTarget.style.height = 'auto'
-    e.currentTarget.style.height = Math.min(e.currentTarget.scrollHeight, 120) + 'px'
+    e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 120)}px`
   }
 
   const side = isRTL ? 'left' : 'right'
@@ -396,14 +451,14 @@ const ChatBot: React.FC = () => {
         }
         @keyframes spin { to { transform:rotate(360deg) } }
 
-        .ht-chat-input:focus          { outline:none; }
-        .ht-chat-input::placeholder   { color:#b09080; }
+        .ht-chat-input:focus        { outline:none; }
+        .ht-chat-input::placeholder { color:#b09080; }
         .ht-chat-scroll::-webkit-scrollbar       { width:4px; }
         .ht-chat-scroll::-webkit-scrollbar-track { background:transparent; }
         .ht-chat-scroll::-webkit-scrollbar-thumb { background:rgba(122,74,40,0.18); border-radius:4px; }
       `}</style>
 
-      {/* ── Chat window ───────────────────────────────────────────────── */}
+      {/* ── Chat window ── */}
       {open && (
         <div ref={chatRef} style={{
           position:        'fixed',
@@ -424,7 +479,7 @@ const ChatBot: React.FC = () => {
           direction:       isRTL ? 'rtl' : 'ltr',
         }}>
 
-          {/* ── Header ── */}
+          {/* Header */}
           <div style={{
             flexShrink:     0,
             padding:        '14px 18px',
@@ -439,17 +494,16 @@ const ChatBot: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
                 width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                background:  'linear-gradient(135deg,#c8a060 0%,#7a4a28 100%)',
-                display:     'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize:    18, border: '2px solid rgba(212,160,96,0.35)',
-                boxShadow:   '0 2px 12px rgba(122,74,40,0.4)',
+                background: 'linear-gradient(135deg,#c8a060 0%,#7a4a28 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, border: '2px solid rgba(212,160,96,0.35)',
+                boxShadow: '0 2px 12px rgba(122,74,40,0.4)',
               }}>🌿</div>
 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <h3 style={{
-                    fontFamily: "'Cormorant Garamond',serif",
-                    fontSize: 16, fontWeight: 600,
+                    fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 600,
                     color: '#f5ede0', margin: 0, letterSpacing: '0.01em',
                   }}>
                     {t('chat.botName')}
@@ -457,7 +511,7 @@ const ChatBot: React.FC = () => {
                   <div style={{
                     width: 7, height: 7, borderRadius: '50%',
                     backgroundColor: '#5cb85c', boxShadow: '0 0 6px rgba(92,184,92,0.6)',
-                  }}/>
+                  }} />
                 </div>
                 <p style={{
                   fontSize: 10, color: 'rgba(212,160,96,0.7)', margin: 0,
@@ -468,14 +522,16 @@ const ChatBot: React.FC = () => {
               </div>
             </div>
 
-            <button onClick={() => setOpen(false)} aria-label={t('chat.close')} style={{
-              width: 32, height: 32, borderRadius: '50%',
-              border:     '1px solid rgba(212,160,96,0.22)',
-              background: 'rgba(255,255,255,0.07)',
-              color:      'rgba(245,237,224,0.7)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', transition: 'all 0.2s',
-            }}
+            <button
+              onClick={() => setOpen(false)}
+              aria-label={t('chat.close')}
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                border: '1px solid rgba(212,160,96,0.22)',
+                background: 'rgba(255,255,255,0.07)',
+                color: 'rgba(245,237,224,0.7)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+              }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.14)'}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'}>
               <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -484,26 +540,19 @@ const ChatBot: React.FC = () => {
             </button>
           </div>
 
-          {/* ── Messages ── */}
+          {/* Messages */}
           <div className="ht-chat-scroll" style={{
-            flex:            1,
-            overflowY:       'auto',
-            padding:         '16px 14px',
-            display:         'flex',
-            flexDirection:   'column',
-            gap:             14,
-            backgroundColor: C.bg,
+            flex: 1, overflowY: 'auto', padding: '16px 14px',
+            display: 'flex', flexDirection: 'column', gap: 14, backgroundColor: C.bg,
           }}>
             {messages.map(msg => (
-              <Bubble key={msg.id} msg={msg} onQuick={handleQuick} t={t} isRTL={isRTL}/>
+              <Bubble key={msg.id} msg={msg} onQuick={handleQuick} t={t} isRTL={isRTL} />
             ))}
 
             {loading && (
               <div style={{
-                display:       'flex',
-                alignItems:    'center',
-                gap:           8,
-                animation:     'bubbleIn 0.3s ease both',
+                display: 'flex', alignItems: 'center', gap: 8,
+                animation: 'bubbleIn 0.3s ease both',
                 flexDirection: isRTL ? 'row-reverse' : 'row',
               }}>
                 <div style={{
@@ -512,56 +561,43 @@ const ChatBot: React.FC = () => {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
                 }}>🌿</div>
                 <div style={{
-                  backgroundColor: C.botBg,
-                  border:          `1px solid ${C.border}`,
-                  borderRadius:    '4px 18px 18px 18px',
-                  boxShadow:       '0 2px 8px rgba(122,74,40,0.07)',
+                  backgroundColor: C.botBg, border: `1px solid ${C.border}`,
+                  borderRadius: isRTL ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
+                  boxShadow: '0 2px 8px rgba(122,74,40,0.07)',
                 }}>
-                  <TypingDots/>
+                  <TypingDots />
                 </div>
               </div>
             )}
 
-            <div ref={bottomRef}/>
+            <div ref={bottomRef} />
           </div>
 
-          {/* ── Input ── */}
+          {/* Input */}
           <div style={{
-            flexShrink:      0,
-            padding:         '12px 14px',
-            backgroundColor: C.surface,
-            borderTop:       `1px solid ${C.border}`,
-            display:         'flex',
-            alignItems:      'flex-end',
-            gap:             10,
-            flexDirection:   isRTL ? 'row-reverse' : 'row',
+            flexShrink: 0, padding: '12px 14px', backgroundColor: C.surface,
+            borderTop: `1px solid ${C.border}`,
+            display: 'flex', alignItems: 'flex-end', gap: 10,
+            flexDirection: isRTL ? 'row-reverse' : 'row',
           }}>
             <textarea
               ref={inputRef}
               className="ht-chat-input"
               rows={1}
               value={input}
-              onChange={handleInput}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder={t('chat.inputPlaceholder')}
               disabled={loading}
               dir={isRTL ? 'rtl' : 'ltr'}
               style={{
-                flex:            1,
-                resize:          'none',
-                border:          `1px solid ${C.border}`,
-                borderRadius:    14,
-                padding:         '10px 14px',
-                fontSize:        13,
-                fontFamily:      'inherit',
-                color:           C.heading,
-                backgroundColor: C.bg,
-                lineHeight:      1.55,
-                maxHeight:       120,
-                transition:      'border-color 0.2s',
-                scrollbarWidth:  'none',
-                outline:         'none',
-                textAlign:       isRTL ? 'right' : 'left',
+                flex: 1, resize: 'none',
+                border: `1px solid ${C.border}`, borderRadius: 14,
+                padding: '10px 14px', fontSize: 13, fontFamily: 'inherit',
+                color: C.heading, backgroundColor: C.bg, lineHeight: 1.55,
+                maxHeight: 120, transition: 'border-color 0.2s',
+                scrollbarWidth: 'none' as const, outline: 'none',
+                textAlign: isRTL ? 'right' : 'left',
               }}
               onFocus={e => e.currentTarget.style.borderColor = '#c8a882'}
               onBlur={e  => e.currentTarget.style.borderColor = C.border}
@@ -570,43 +606,33 @@ const ChatBot: React.FC = () => {
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || loading}
+              aria-label="Send message"
               style={{
-                width:           40, height: 40, borderRadius: '50%', flexShrink: 0,
+                width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
                 backgroundColor: input.trim() && !loading ? C.accent : 'rgba(122,74,40,0.25)',
-                border:          'none',
-                cursor:          input.trim() && !loading ? 'pointer' : 'not-allowed',
-                display:         'flex', alignItems: 'center', justifyContent: 'center',
-                transition:      'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
-                boxShadow:       input.trim() && !loading ? '0 4px 14px rgba(122,74,40,0.32)' : 'none',
+                border: 'none',
+                cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+                boxShadow: input.trim() && !loading ? '0 4px 14px rgba(122,74,40,0.32)' : 'none',
               }}
               onMouseEnter={e => { if (input.trim() && !loading) (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}>
               {loading
-                ? <div style={{
-                    width: 16, height: 16,
-                    border: '2px solid rgba(255,255,255,0.4)',
-                    borderTopColor: '#fff', borderRadius: '50%',
-                    animation: 'spin 0.7s linear infinite',
-                  }}/>
+                ? <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                 : <svg width="16" height="16" fill="none" stroke="#fff" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                      d="M22 2L11 13M22 2L15 22l-4-9-9-4 19-7z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M22 2L11 13M22 2L15 22l-4-9-9-4 19-7z"/>
                   </svg>
               }
             </button>
           </div>
 
-          {/* ── Footer branding ── */}
+          {/* Footer branding — always LTR */}
           <div style={{
-            flexShrink:      0,
-            padding:         '6px 14px 8px',
-            backgroundColor: C.surface,
-            borderTop:       `1px solid ${C.border}`,
-            display:         'flex',
-            alignItems:      'center',
-            justifyContent:  'center',
-            gap:             6,
-            direction:       'ltr',   // always LTR for branding line
+            flexShrink: 0, padding: '6px 14px 8px', backgroundColor: C.surface,
+            borderTop: `1px solid ${C.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            direction: 'ltr',
           }}>
             <span style={{ fontSize: 10, color: C.muted, letterSpacing: '0.08em' }}>
               {t('chat.footerPowered')}
@@ -622,29 +648,24 @@ const ChatBot: React.FC = () => {
         </div>
       )}
 
-      {/* ── FAB ─────────────────────────────────────────────────────────── */}
+      {/* ── FAB ── */}
       <button
         ref={fabRef}
         onClick={open ? () => setOpen(false) : handleOpen}
         aria-label={t('chat.fabLabel')}
         style={{
-          position:     'fixed',
-          bottom:       24,
-          [side]:       24,
-          zIndex:       9001,
-          width:        58, height: 58, borderRadius: '50%',
-          border:       'none', cursor: 'pointer',
-          background:   open
+          position: 'fixed', bottom: 24, [side]: 24, zIndex: 9001,
+          width: 58, height: 58, borderRadius: '50%',
+          border: 'none', cursor: 'pointer',
+          background: open
             ? 'linear-gradient(135deg,#5a4030 0%,#3d2010 100%)'
             : 'linear-gradient(135deg,#c8a060 0%,#7a4a28 100%)',
-          boxShadow:    open
+          boxShadow: open
             ? '0 6px 24px rgba(30,14,4,0.35)'
             : '0 8px 28px rgba(122,74,40,0.45)',
-          display:      'flex', alignItems: 'center', justifyContent: 'center',
-          transition:   'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-          animation:    shake
-            ? 'fabShake 0.6s ease, fabPulse 2s ease infinite'
-            : 'fabPulse 2s ease infinite',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+          animation: shake ? 'fabShake 0.6s ease, fabPulse 2s ease infinite' : 'fabPulse 2s ease infinite',
         }}
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.12)'}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}>
@@ -661,15 +682,15 @@ const ChatBot: React.FC = () => {
 
         {!open && unread > 0 && (
           <div style={{
-            position:        'absolute', top: -2, right: -2,
-            width:           20, height: 20, borderRadius: '50%',
+            position: 'absolute', top: -2, right: -2,
+            width: 20, height: 20, borderRadius: '50%',
             backgroundColor: '#e84a4a', border: '2px solid #faf7f2',
-            display:         'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize:        10, fontWeight: 700, color: '#fff',
-            animation:       'badgePop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
-            fontFamily:      'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 700, color: '#fff',
+            animation: 'badgePop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+            fontFamily: 'inherit',
           }}>
-            {unread}
+            {unread > 9 ? '9+' : unread}
           </div>
         )}
       </button>

@@ -27,6 +27,16 @@ const EyeIcon = ({ open }: { open: boolean }) => (
 // ─── Terms / Privacy Modal ────────────────────────────────────────────────────
 type ModalDoc = 'terms' | 'privacy' | null
 
+// Shape of a rendered section
+interface Section {
+  title: string
+  body?: string[]       // plain paragraphs  (p1, p2…)
+  intro?: string        // lead-in sentence before bullet list
+  items?: string[]      // bullet list
+  outro?: string        // italic closing paragraph
+  note?: string         // highlighted callout box
+}
+
 const LegalModal: React.FC<{
   doc: ModalDoc
   onClose: () => void
@@ -34,76 +44,140 @@ const LegalModal: React.FC<{
   t: (k: string) => string
 }> = ({ doc, onClose, onAccept, t }) => {
   if (!doc) return null
-
   const isTerms = doc === 'terms'
 
-  const termsContent = `
-Last updated: January 2025
+  // ── Re-use the rich terms.* keys that already power the full Terms page ───
+  const termsSections: Section[] = [
+    {
+      title: t('terms.s1.title'),
+      body:  [t('terms.s1.p1'), t('terms.s1.p2')],
+    },
+    {
+      title: t('terms.s2.title'),
+      intro: t('terms.s2.intro'),
+      items: [
+        t('terms.s2.item1'), t('terms.s2.item2'), t('terms.s2.item3'),
+        t('terms.s2.item4'), t('terms.s2.item5'), t('terms.s2.item6'),
+      ],
+      note: t('terms.s2.note'),
+    },
+    {
+      title: t('terms.s3.title'),
+      intro: t('terms.s3.intro'),
+      items: [
+        t('terms.s3.item1'), t('terms.s3.item2'), t('terms.s3.item3'),
+        t('terms.s3.item4'), t('terms.s3.item5'), t('terms.s3.item6'),
+      ],
+      note: t('terms.s3.note'),
+    },
+    {
+      title: t('terms.s4.title'),
+      intro: t('terms.s4.intro'),
+      items: [
+        t('terms.s4.item1'), t('terms.s4.item2'), t('terms.s4.item3'),
+        t('terms.s4.item4'), t('terms.s4.item5'), t('terms.s4.item6'),
+      ],
+      outro: t('terms.s4.outro'),
+    },
+    {
+      title: t('terms.s5.title'),
+      intro: t('terms.s5.intro'),
+      items: [
+        t('terms.s5.item1'), t('terms.s5.item2'), t('terms.s5.item3'),
+        t('terms.s5.item4'), t('terms.s5.item5'), t('terms.s5.item6'), t('terms.s5.item7'),
+      ],
+      outro: t('terms.s5.outro'),
+    },
+    {
+      title: t('terms.s6.title'),
+      intro: t('terms.s6.intro'),
+      items: [
+        t('terms.s6.item1'), t('terms.s6.item2'),
+        t('terms.s6.item3'), t('terms.s6.item4'),
+      ],
+    },
+    {
+      title: t('terms.s7.title'),
+      intro: t('terms.s7.intro'),
+      items: [
+        t('terms.s7.item1'), t('terms.s7.item2'), t('terms.s7.item3'),
+        t('terms.s7.item4'), t('terms.s7.item5'),
+      ],
+      note: t('terms.s7.note'),
+    },
+    {
+      title: t('terms.s8.title'),
+      body:  [t('terms.s8.p1'), t('terms.s8.p2')],
+    },
+  ]
 
-1. Acceptance of Terms
-By accessing and using HarvestTable ("the Service"), you accept and agree to be bound by the terms and provisions of this agreement.
+  // ── Re-use the rich privacy.* keys that already power the Privacy page ────
+  const privacySections: Section[] = [
+    {
+      title: t('privacy.s1.title'),
+      intro: t('privacy.s1.intro'),
+      items: [
+        t('privacy.s1.item1'), t('privacy.s1.item2'), t('privacy.s1.item3'),
+        t('privacy.s1.item4'), t('privacy.s1.item5'), t('privacy.s1.item6'),
+        t('privacy.s1.item7'),
+      ],
+      outro: t('privacy.s1.outro'),
+    },
+    {
+      title: t('privacy.s2.title'),
+      intro: t('privacy.s2.intro'),
+      items: [
+        t('privacy.s2.item1'), t('privacy.s2.item2'), t('privacy.s2.item3'),
+        t('privacy.s2.item4'), t('privacy.s2.item5'), t('privacy.s2.item6'),
+        t('privacy.s2.item7'),
+      ],
+    },
+    {
+      title: t('privacy.s3.title'),
+      intro: t('privacy.s3.intro'),
+      items: [
+        t('privacy.s3.item1'), t('privacy.s3.item2'), t('privacy.s3.item3'),
+        t('privacy.s3.item4'), t('privacy.s3.item5'),
+      ],
+      outro: t('privacy.s3.outro'),
+    },
+    {
+      title: t('privacy.s4.title'),
+      intro: t('privacy.s4.intro'),
+      items: [
+        t('privacy.s4.item1'), t('privacy.s4.item2'),
+        t('privacy.s4.item3'), t('privacy.s4.item4'),
+      ],
+      outro: t('privacy.s4.outro'),
+    },
+    {
+      title: t('privacy.s5.title'),
+      intro: t('privacy.s5.intro'),
+      items: [
+        t('privacy.s5.item1'), t('privacy.s5.item2'), t('privacy.s5.item3'),
+        t('privacy.s5.item4'), t('privacy.s5.item5'),
+      ],
+      outro: t('privacy.s5.outro'),
+    },
+    {
+      title: t('privacy.s6.title'),
+      intro: t('privacy.s6.intro'),
+      items: [
+        t('privacy.s6.item1'), t('privacy.s6.item2'), t('privacy.s6.item3'),
+        t('privacy.s6.item4'), t('privacy.s6.item5'), t('privacy.s6.item6'),
+        t('privacy.s6.item7'),
+      ],
+      outro: t('privacy.s6.outro'),
+    },
+    {
+      title: t('privacy.s7.title'),
+      intro: t('privacy.s7.intro'),
+      outro: t('privacy.s7.outro'),
+    },
+  ]
 
-2. Use of Service
-HarvestTable provides an online marketplace for organic and natural food products. You must be at least 18 years old to use our Service. You are responsible for maintaining the confidentiality of your account.
-
-3. Orders and Payments
-All orders are subject to product availability. We reserve the right to refuse or cancel any order. Prices are subject to change without notice. Payment must be received prior to shipment.
-
-4. Shipping and Delivery
-We ship to addresses in supported regions. Delivery times are estimates only and are not guaranteed. Risk of loss and title for items purchased pass to you upon delivery to the carrier.
-
-5. Returns and Refunds
-Products may be returned within 30 days of delivery if unused and in original packaging. Perishable items are non-refundable once opened. Contact support@harvesttable.com to initiate a return.
-
-6. Intellectual Property
-All content on this site, including text, graphics, logos, and images, is the property of HarvestTable and protected by intellectual property laws.
-
-7. Limitation of Liability
-HarvestTable shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service.
-
-8. Governing Law
-These Terms shall be governed by the laws of the jurisdiction in which HarvestTable operates, without regard to conflict of law provisions.
-
-9. Changes to Terms
-We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms.
-
-10. Contact
-For questions about these Terms, contact us at legal@harvesttable.com.
-  `.trim()
-
-  const privacyContent = `
-Last updated: January 2025
-
-1. Information We Collect
-We collect information you provide directly (name, email, address, payment info) and automatically (browsing data, cookies, device info) when you use HarvestTable.
-
-2. How We Use Your Information
-We use your data to process orders, send transactional emails, improve our services, personalise your experience, and comply with legal obligations. We do not sell your personal information.
-
-3. Cookies
-We use essential cookies for site functionality and optional analytics cookies to understand usage. You can control cookies through your browser settings.
-
-4. Data Sharing
-We share data with: payment processors (to complete transactions), shipping carriers (to deliver orders), analytics services (anonymised), and when required by law.
-
-5. Data Retention
-We retain your data for as long as your account is active or as needed to provide services. You may request deletion of your account at any time.
-
-6. Your Rights
-Depending on your location, you may have rights to access, correct, delete, or export your personal data. Contact privacy@harvesttable.com to exercise these rights.
-
-7. Security
-We implement industry-standard security measures to protect your data. No method of transmission over the Internet is 100% secure, however.
-
-8. Children's Privacy
-Our Service is not directed to children under 13. We do not knowingly collect personal information from children under 13.
-
-9. International Transfers
-Your data may be processed in countries other than your own. We ensure appropriate safeguards are in place.
-
-10. Contact
-For privacy questions or to exercise your rights, contact privacy@harvesttable.com.
-  `.trim()
+  const sections = isTerms ? termsSections : privacySections
+  const effectiveDate = isTerms ? t('terms.effective') : t('privacy.updated')
 
   return (
     <>
@@ -113,35 +187,90 @@ For privacy questions or to exercise your rights, contact privacy@harvesttable.c
       />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        zIndex: 301, width: '92%', maxWidth: 560, maxHeight: '82vh',
+        zIndex: 301, width: '92%', maxWidth: 580, maxHeight: '84vh',
         backgroundColor: C.surface, borderRadius: 20, border: `1px solid ${C.border}`,
         boxShadow: '0 24px 80px rgba(42,26,14,0.22)',
         display: 'flex', flexDirection: 'column',
         fontFamily: "'Jost', sans-serif",
         animation: 'modalIn 0.3s cubic-bezier(0.22,1,0.36,1)',
       }}>
+
         {/* Header */}
-        <div style={{ padding: '22px 24px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ padding: '22px 24px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
           <div>
             <p style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700, color: C.label, margin: '0 0 4px' }}>
               {t('signup.legal.label')}
             </p>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 700, color: C.heading, margin: 0 }}>
+            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 700, color: C.heading, margin: '0 0 4px' }}>
               {isTerms ? t('signup.legal.termsTitle') : t('signup.legal.privacyTitle')}
             </h2>
+            <p style={{ fontSize: 11, color: C.muted, margin: 0 }}>{effectiveDate}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 6, borderRadius: 8, display: 'flex' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 6, borderRadius: 8, display: 'flex', marginTop: 2 }}>
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
         </div>
 
-        {/* Scrollable content */}
+        {/* Scrollable body */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '20px 24px' }}>
-          <div style={{ fontSize: 13, lineHeight: 1.85, color: C.body, whiteSpace: 'pre-line' }}>
-            {isTerms ? termsContent : privacyContent}
-          </div>
+          {sections.map((sec, i) => (
+            <div key={i} style={{ marginBottom: 22 }}>
+
+              {/* Section heading */}
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.heading, margin: '0 0 8px', letterSpacing: '0.02em' }}>
+                {sec.title}
+              </h3>
+
+              {/* Intro / lead-in */}
+              {sec.intro && (
+                <p style={{ fontSize: 13, lineHeight: 1.75, color: C.body, margin: '0 0 8px' }}>
+                  {sec.intro}
+                </p>
+              )}
+
+              {/* Plain body paragraphs */}
+              {sec.body?.map((para, j) => (
+                <p key={j} style={{ fontSize: 13, lineHeight: 1.75, color: C.body, margin: '0 0 8px' }}>
+                  {para}
+                </p>
+              ))}
+
+              {/* Bullet items */}
+              {sec.items && (
+                <ul style={{ margin: '0 0 8px', padding: 0, listStyle: 'none' }}>
+                  {sec.items.map((item, j) => (
+                    <li key={j} style={{ fontSize: 13, lineHeight: 1.75, color: C.body, marginBottom: 4, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ color: C.accent, flexShrink: 0, marginTop: 1 }}>•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Italic outro */}
+              {sec.outro && (
+                <p style={{ fontSize: 12, lineHeight: 1.7, color: C.muted, margin: '4px 0 0', fontStyle: 'italic' }}>
+                  {sec.outro}
+                </p>
+              )}
+
+              {/* Highlighted note callout */}
+              {sec.note && (
+                <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 10, backgroundColor: C.accentLight, border: `1px solid ${C.border}` }}>
+                  <p style={{ fontSize: 12, lineHeight: 1.7, color: C.body, margin: 0 }}>
+                    {sec.note}
+                  </p>
+                </div>
+              )}
+
+              {/* Section divider */}
+              {i < sections.length - 1 && (
+                <div style={{ height: 1, backgroundColor: C.border, marginTop: 20 }} />
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Footer */}
@@ -149,7 +278,7 @@ For privacy questions or to exercise your rights, contact privacy@harvesttable.c
           <button onClick={onClose} style={{ flex: 1, padding: '11px 0', borderRadius: 12, border: `1px solid ${C.border}`, backgroundColor: 'transparent', color: C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('signup.legal.close')}
           </button>
-          <button onClick={() => { onAccept(); onClose(); }} style={{ flex: 2, padding: '11px 0', borderRadius: 12, border: 'none', backgroundColor: C.accent, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <button onClick={() => { onAccept(); onClose() }} style={{ flex: 2, padding: '11px 0', borderRadius: 12, border: 'none', backgroundColor: C.accent, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <svg width="14" height="14" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
             {t('signup.legal.accept')}
           </button>
@@ -421,7 +550,7 @@ const SignupPage: React.FC = () => {
                 {passwordMismatch && <p style={{ fontSize:10, marginTop:6, fontWeight:600, color:'#b04040' }}>{t('signup.mismatch')}</p>}
               </div>
 
-              {/* Terms checkbox — clicking text links opens modal, checkbox toggles agreed */}
+              {/* Terms checkbox */}
               <label
                 style={{ ...fade(0.35), display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', userSelect:'none', paddingTop:4 }}
                 onClick={() => setAgreed(v => !v)}

@@ -12,11 +12,32 @@ const Footer: React.FC = () => {
   useEffect(() => {
     const el = ref.current
     if (!el) return
+
+    // Fire immediately if the element is already in the viewport (short pages),
+    // otherwise observe and fire when it scrolls into view.
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVis(true); obs.disconnect() } },
-      { threshold: 0.08 }
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVis(true)
+          obs.disconnect()
+        }
+      },
+      {
+        threshold: 0,        // trigger as soon as even 1px is visible
+        rootMargin: '0px',
+      }
     )
     obs.observe(el)
+
+    // Fallback: if the element is already visible at mount time,
+    // IntersectionObserver fires synchronously in most browsers but
+    // this guarantees it in all cases (e.g. SSR hydration edge cases).
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      setVis(true)
+      obs.disconnect()
+    }
+
     return () => obs.disconnect()
   }, [])
 
@@ -31,10 +52,10 @@ const Footer: React.FC = () => {
   ]
 
   const CARE_LINKS = [
-    [t('footer.aboutUs'),      '/about'],
-    [t('footer.shipping'),     '/shipping'],
-    [t('footer.returns'),      '/returns'],
-    [t('footer.contact'),      '/contact'],
+    [t('footer.aboutUs'),  '/about'],
+    [t('footer.shipping'), '/shipping'],
+    [t('footer.returns'),  '/returns'],
+    [t('footer.contact'),  '/contact'],
   ]
 
   const badges = [
@@ -42,7 +63,8 @@ const Footer: React.FC = () => {
       label: t('home.promise.organic'),
       icon: (
         <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
         </svg>
       ),
     },
@@ -50,7 +72,8 @@ const Footer: React.FC = () => {
       label: t('home.promise.fair'),
       icon: (
         <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
         </svg>
       ),
     },
@@ -58,29 +81,34 @@ const Footer: React.FC = () => {
       label: t('footer.secureCheckout'),
       icon: (
         <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
         </svg>
       ),
     },
   ]
 
+  // Tighter, faster transitions — content feels snappy rather than sluggish
   const fadeUp = (delay: number): React.CSSProperties => ({
-    opacity: vis ? 1 : 0,
-    transform: vis ? 'translateY(0)' : 'translateY(22px)',
-    transition: `opacity 0.6s cubic-bezier(0.22,1,0.36,1) ${delay}s, transform 0.6s cubic-bezier(0.22,1,0.36,1) ${delay}s`,
+    opacity:    vis ? 1 : 0,
+    transform:  vis ? 'translateY(0)' : 'translateY(14px)',
+    transition: `opacity 0.45s cubic-bezier(0.22,1,0.36,1) ${delay}s,
+                 transform 0.45s cubic-bezier(0.22,1,0.36,1) ${delay}s`,
   })
 
   return (
-    <footer ref={ref} style={{ backgroundColor: '#f4ede2', color: '#a08878', direction: isRTL ? 'rtl' : 'ltr' }}>
-
+    <footer
+      ref={ref}
+      style={{ backgroundColor: '#f4ede2', color: '#a08878', direction: isRTL ? 'rtl' : 'ltr' }}
+    >
       {/* Top divider */}
       <div
         className="h-[1px] w-full"
         style={{
           background: 'linear-gradient(90deg, transparent, #d4b896, #c8a070, #d4b896, transparent)',
-          transform: `scaleX(${vis ? 1 : 0})`,
+          transform:       `scaleX(${vis ? 1 : 0})`,
           transformOrigin: 'center',
-          transition: 'transform 0.9s cubic-bezier(0.22,1,0.36,1) 0.05s',
+          transition:      'transform 0.7s cubic-bezier(0.22,1,0.36,1) 0.02s',
         }}
       />
 
@@ -88,9 +116,9 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
 
           {/* Brand column */}
-          <div className="col-span-2" style={fadeUp(0.1)}>
+          <div className="col-span-2" style={fadeUp(0.05)}>
             <span className="font-serif text-2xl font-bold" style={{ color: '#7a4a28' }}>
-                {t('nav.brandName')}
+              {t('nav.brandName')}
             </span>
             <p className="text-[9px] tracking-[0.28em] uppercase mt-1 mb-5" style={{ color: '#c0a888' }}>
               {t('nav.brandSub')}
@@ -105,12 +133,15 @@ const Footer: React.FC = () => {
                   className="text-[10px] font-medium px-2.5 py-1 rounded-full"
                   style={{
                     backgroundColor: 'rgba(122,74,40,0.08)',
-                    color: '#8a6040',
-                    border: '1px solid rgba(122,74,40,0.15)',
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    opacity: vis ? 1 : 0,
-                    transform: vis ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.92)',
-                    transition: `opacity 0.5s cubic-bezier(0.22,1,0.36,1) ${0.28 + i * 0.08}s, transform 0.5s cubic-bezier(0.22,1,0.36,1) ${0.28 + i * 0.08}s`,
+                    color:           '#8a6040',
+                    border:          '1px solid rgba(122,74,40,0.15)',
+                    display:         'inline-flex',
+                    alignItems:      'center',
+                    gap:             5,
+                    opacity:         vis ? 1 : 0,
+                    transform:       vis ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.94)',
+                    transition:      `opacity 0.4s cubic-bezier(0.22,1,0.36,1) ${0.1 + i * 0.06}s,
+                                      transform 0.4s cubic-bezier(0.22,1,0.36,1) ${0.1 + i * 0.06}s`,
                   }}
                 >
                   {badge.icon}
@@ -121,7 +152,7 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Shop links */}
-          <div style={fadeUp(0.2)}>
+          <div style={fadeUp(0.1)}>
             <h4 className="text-[10px] font-bold tracking-[0.3em] uppercase mb-5" style={{ color: '#7a4a28' }}>
               {t('common.shop')}
             </h4>
@@ -130,9 +161,10 @@ const Footer: React.FC = () => {
                 <li
                   key={to}
                   style={{
-                    opacity: vis ? 1 : 0,
-                    transform: vis ? 'translateX(0)' : `translateX(${isRTL ? '10px' : '-10px'})`,
-                    transition: `opacity 0.5s cubic-bezier(0.22,1,0.36,1) ${0.25 + i * 0.06}s, transform 0.5s cubic-bezier(0.22,1,0.36,1) ${0.25 + i * 0.06}s`,
+                    opacity:    vis ? 1 : 0,
+                    transform:  vis ? 'translateX(0)' : `translateX(${isRTL ? '8px' : '-8px'})`,
+                    transition: `opacity 0.4s cubic-bezier(0.22,1,0.36,1) ${0.12 + i * 0.05}s,
+                                 transform 0.4s cubic-bezier(0.22,1,0.36,1) ${0.12 + i * 0.05}s`,
                   }}
                 >
                   <Link
@@ -150,7 +182,7 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Customer care links */}
-          <div style={fadeUp(0.28)}>
+          <div style={fadeUp(0.15)}>
             <h4 className="text-[10px] font-bold tracking-[0.3em] uppercase mb-5" style={{ color: '#7a4a28' }}>
               {t('footer.customerCare')}
             </h4>
@@ -159,9 +191,10 @@ const Footer: React.FC = () => {
                 <li
                   key={label}
                   style={{
-                    opacity: vis ? 1 : 0,
-                    transform: vis ? 'translateX(0)' : `translateX(${isRTL ? '10px' : '-10px'})`,
-                    transition: `opacity 0.5s cubic-bezier(0.22,1,0.36,1) ${0.32 + i * 0.06}s, transform 0.5s cubic-bezier(0.22,1,0.36,1) ${0.32 + i * 0.06}s`,
+                    opacity:    vis ? 1 : 0,
+                    transform:  vis ? 'translateX(0)' : `translateX(${isRTL ? '8px' : '-8px'})`,
+                    transition: `opacity 0.4s cubic-bezier(0.22,1,0.36,1) ${0.16 + i * 0.05}s,
+                                 transform 0.4s cubic-bezier(0.22,1,0.36,1) ${0.16 + i * 0.05}s`,
                   }}
                 >
                   <Link
@@ -182,7 +215,7 @@ const Footer: React.FC = () => {
         {/* Bottom bar */}
         <div
           className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3"
-          style={{ borderTop: '1px solid rgba(122,74,40,0.12)', ...fadeUp(0.45) }}
+          style={{ borderTop: '1px solid rgba(122,74,40,0.12)', ...fadeUp(0.2) }}
         >
           <p className="text-xs" style={{ color: '#c0a888' }}>
             {t('footer.copyright')}

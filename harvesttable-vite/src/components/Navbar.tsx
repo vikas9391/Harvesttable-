@@ -32,33 +32,72 @@ export const AuthContext = createContext<AuthCtxType>({
 })
 export const useAuth = () => useContext(AuthContext)
 
+// In src/components/Navbar.tsx
+// Replace the AuthProvider component's useEffect with this version.
+// Everything else in the file stays exactly the same.
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser]               = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/users/me/', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setUser(data) })
-      .catch(() => {})
-      .finally(() => setAuthLoading(false))
+    // Guard against React Strict Mode's double-invoke in development.
+    // The AbortController lets us cancel the in-flight fetch when the
+    // effect is cleaned up before it resolves.
+    const controller = new AbortController()
+    let cancelled = false
+
+    apiFetch('/api/users/me/', { signal: controller.signal })
+      .then(r => {
+        if (cancelled) return null
+        // 401 / 403 = not logged in — leave user as null
+        if (r.status === 401 || r.status === 403) return null
+        if (!r.ok) return null
+        return r.json()
+      })
+      .then((data: User | null) => {
+        if (cancelled) return
+        if (data && data.id) setUser(data)
+      })
+      .catch(err => {
+        // AbortError is expected on cleanup — don't log it
+        if (err?.name === 'AbortError') return
+        // Network error — treat as logged out, don't crash
+      })
+      .finally(() => {
+        if (!cancelled) setAuthLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
   }, [])
 
   const login = async (email: string, password: string): Promise<User> => {
-    const res  = await apiFetch('/api/users/login/', { method: 'POST', body: JSON.stringify({ email, password }) })
+    const res  = await apiFetch('/api/users/login/', {
+      method: 'POST',
+      body:   JSON.stringify({ email, password }),
+    })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Login failed.')
-    setUser(data); return data
+    setUser(data)
+    return data
   }
 
-  const signup = async (firstName: string, lastName: string, email: string, password: string) => {
-    const res  = await apiFetch('/api/users/register/', { method: 'POST', body: JSON.stringify({ firstName, lastName, email, password }) })
+  const signup = async (
+    firstName: string, lastName: string, email: string, password: string,
+  ): Promise<void> => {
+    const res  = await apiFetch('/api/users/register/', {
+      method: 'POST',
+      body:   JSON.stringify({ firstName, lastName, email, password }),
+    })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Registration failed.')
     setUser(data)
   }
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     await apiFetch('/api/users/logout/', { method: 'POST' })
     setUser(null)
   }
@@ -69,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   )
 }
+
 
 export function useRequireAuth() {
   const { isLoggedIn } = useAuth()
@@ -148,18 +188,14 @@ const IconGlobe = ({ size = 18 }: { size?: number }) => (
 )
 
 // ─── Google Translate Nudge ────────────────────────────────────────────────────
-// Detects if Google Translate was applied (via browser extension or Chrome's
-// built-in offer) and shows a toast pointing users to the built-in switcher.
 const TranslateNudge: React.FC = () => {
   const [show, setShow] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    // Strip Google Translate classes immediately if already present on mount
     const html = document.documentElement
     html.classList.remove('translated-ltr', 'translated-rtl')
 
-    // Watch for Google Translate being applied after mount
     const observer = new MutationObserver(() => {
       const hasTranslated =
         html.classList.contains('translated-ltr') ||
@@ -167,9 +203,7 @@ const TranslateNudge: React.FC = () => {
         !!document.querySelector('.goog-te-banner-frame')
 
       if (hasTranslated && !dismissed) {
-        // Immediately strip the translate classes so layout isn't broken
         html.classList.remove('translated-ltr', 'translated-rtl')
-        // Also remove the body top offset Google Translate injects
         document.body.style.top = ''
         setShow(true)
       }
@@ -181,7 +215,6 @@ const TranslateNudge: React.FC = () => {
       subtree: false,
     })
 
-    // Also watch <body> for the Google Translate toolbar iframe injection
     observer.observe(document.body, {
       childList: true,
       subtree: false,
@@ -224,7 +257,6 @@ const TranslateNudge: React.FC = () => {
         }
       `}</style>
 
-      {/* Globe icon */}
       <span style={{ display: 'flex', alignItems: 'center', color: '#c8a882', flexShrink: 0 }}>
         <IconGlobe size={16} />
       </span>
@@ -590,7 +622,6 @@ const Navbar: React.FC = () => {
         @keyframes cartBadgePop   { 0% { transform:scale(0); } 60% { transform:scale(1.25); } 100% { transform:scale(1); } }
       `}</style>
 
-      {/* ✅ Google Translate nudge — renders outside the nav so it's never clipped */}
       <TranslateNudge />
 
       <nav
