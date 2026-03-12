@@ -21,7 +21,16 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = [
+    "harvesttable-szli.onrender.com",
+    "harvesttable.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
+
+_env_hosts = os.getenv("ALLOWED_HOSTS", "")
+if _env_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _env_hosts.split(",") if h.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
