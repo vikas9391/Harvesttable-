@@ -138,8 +138,11 @@ if not DEBUG:
 # CORS — list every frontend origin that needs to call the API
 # -----------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = [
-    "https://harvesttable.onrender.com",    # production frontend
-    "http://localhost:5173",                 # local Vite dev server
+    "https://harvesttable-szli.onrender.com",
+    "http://harvesttable-szli.onrender.com",
+    "https://harvesttable.onrender.com", 
+    "http://harvesttable.onrender.com",  
+    "http://localhost:5173",               
     "http://127.0.0.1:5173",
 ]
 CORS_ALLOW_CREDENTIALS = True
@@ -147,7 +150,10 @@ CORS_ALLOW_CREDENTIALS = True
 # -----------------------------------------------------------------------
 # CSRF — must include every origin that submits forms / session requests
 # -----------------------------------------------------------------------
+
 CSRF_TRUSTED_ORIGINS = [
+    "https://harvesttable-szli.onrender.com",
+    "http://harvesttable-szli.onrender.com",
     "https://harvesttable.onrender.com",
     "http://harvesttable.onrender.com",
     "http://localhost:5173",
