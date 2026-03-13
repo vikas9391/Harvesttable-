@@ -5,9 +5,10 @@ User-related API views for HarvestTable.
 Endpoints
 ---------
 GET  /api/users/csrf/                   Seed CSRF cookie (AllowAny)
-POST /api/users/register/               Create account   (AllowAny)
-POST /api/users/login/                  Session login    (AllowAny)
-POST /api/users/logout/                 Session logout   (IsAuthenticated)
+POST /api/users/register/               Create account   (AllowAny)  → returns JWT
+POST /api/users/login/                  Login            (AllowAny)  → returns JWT
+POST /api/users/refresh/                Refresh JWT      (AllowAny)
+POST /api/users/logout/                 Logout           (IsAuthenticated)
 GET  /api/users/me/                     Current profile  (IsAuthenticated)
 PATCH /api/users/me/                    Update profile   (IsAuthenticated)
 DELETE /api/users/me/                   Delete account   (IsAuthenticated)
@@ -39,11 +40,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 from .models import UserProfile
 from .serializers import LoginSerializer, ProfileSerializer, RegisterSerializer
 
 logger = logging.getLogger(__name__)
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -68,12 +72,21 @@ def _rate_limit(key: str, limit: int, window: int) -> bool:
     return False
 
 
+def _get_tokens(user) -> dict:
+    """Return a fresh access + refresh token pair for a user."""
+    refresh = RefreshToken.for_user(user)
+    return {
+        'access':  str(refresh.access_token),
+        'refresh': str(refresh),
+    }
+
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def csrf_token(request: Request) -> Response:
-    """Seed the CSRF cookie and return the token value."""
+    """Seed the CSRF cookie and return the token value (used by Django admin)."""
     return Response({'csrfToken': get_token(request)})
 
 
@@ -83,6 +96,7 @@ def register(request: Request) -> Response:
     """
     POST /api/users/register/
     Body: { firstName, lastName, email, password }
+    Returns: profile data + { access, refresh }
     """
     serializer = RegisterSerializer(data=request.data)
     if not serializer.is_valid():
@@ -92,8 +106,11 @@ def register(request: Request) -> Response:
         return Response({'error': str(msg)}, status=status.HTTP_400_BAD_REQUEST)
 
     user = cast(AbstractBaseUser, serializer.save())
-    login(request, user)
-    return Response(ProfileSerializer(user).data, status=status.HTTP_201_CREATED)
+    tokens = _get_tokens(user)
+    return Response(
+        {**ProfileSerializer(user).data, **tokens},
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(['POST'])
@@ -102,10 +119,11 @@ def user_login(request: Request) -> Response:
     """
     POST /api/users/login/
     Body: { email, password }
+    Returns: profile data + { access, refresh }
     """
     # Brute-force guard: 10 attempts per IP per 5 minutes
-    ip      = _get_client_ip(request)
-    rl_key  = f'login_attempts:{ip}'
+    ip     = _get_client_ip(request)
+    rl_key = f'login_attempts:{ip}'
     if _rate_limit(rl_key, limit=10, window=300):
         return Response(
             {'error': 'Too many login attempts. Please wait a few minutes.'},
@@ -121,19 +139,52 @@ def user_login(request: Request) -> Response:
 
     user = authenticate(request, username=email, password=password)
     if not user:
-        return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {'error': 'Invalid email or password.'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
 
-    login(request, user)
-    # Reset brute-force counter on success
-    cache.delete(rl_key)
-    return Response(ProfileSerializer(user).data)
+    cache.delete(rl_key)   # Reset brute-force counter on success
+    tokens = _get_tokens(user)
+    return Response({**ProfileSerializer(user).data, **tokens})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def token_refresh(request: Request) -> Response:
+    """
+    POST /api/users/refresh/
+    Body: { refresh }
+    Returns: { access, refresh }  (refresh is rotated)
+    """
+    refresh_token = request.data.get('refresh', '')
+    if not refresh_token:
+        return Response({'error': 'Refresh token required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        token = RefreshToken(refresh_token)
+        return Response({
+            'access':  str(token.access_token),
+            'refresh': str(token),
+        })
+    except TokenError as e:
+        return Response({'error': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def user_logout(request: Request) -> Response:
-    """POST /api/users/logout/"""
-    logout(request)
+    """
+    POST /api/users/logout/
+    Body: { refresh }  — blacklists the refresh token server-side
+    """
+    refresh_token = request.data.get('refresh', '')
+    if refresh_token:
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError:
+            pass   # Already invalid — that's fine
     return Response({'message': 'Logged out successfully.'})
 
 
@@ -159,8 +210,14 @@ def me(request: Request) -> Response:
 
     # DELETE
     user = request.user
-    logout(request)           # Invalidate session before deletion
-    user.delete()             # Cascades to UserProfile (OneToOneField)
+    # Blacklist refresh token if provided
+    refresh_token = request.data.get('refresh', '')
+    if refresh_token:
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except TokenError:
+            pass
+    user.delete()
     logger.info('User account deleted: %s', user.email)
     return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
@@ -171,6 +228,7 @@ def change_password(request: Request) -> Response:
     """
     POST /api/users/change-password/
     Body: { currentPassword, newPassword }
+    Returns new tokens so the frontend doesn't need to re-login.
     """
     user             = request.user
     current_password = request.data.get('currentPassword', '').strip()
@@ -190,8 +248,10 @@ def change_password(request: Request) -> Response:
 
     user.set_password(new_password)
     user.save()
-    login(request, user)   # Re-login to keep session alive after password change
-    return Response({'message': 'Password updated successfully.'})
+
+    # Issue fresh tokens so the client stays authenticated
+    tokens = _get_tokens(user)
+    return Response({'message': 'Password updated successfully.', **tokens})
 
 
 @api_view(['PATCH'])
@@ -200,10 +260,6 @@ def notifications(request: Request) -> Response:
     """
     PATCH /api/users/notifications/
     Body: { orderUpdates, promotions, newArrivals, wishlistAlerts }
-
-    Stores notification preferences on the user's profile as a JSON blob.
-    The frontend persists to localStorage as well; this endpoint makes prefs
-    sync across devices.
     """
     allowed_keys = {'orderUpdates', 'promotions', 'newArrivals', 'wishlistAlerts'}
     prefs        = {k: bool(v) for k, v in request.data.items() if k in allowed_keys}
@@ -213,11 +269,6 @@ def notifications(request: Request) -> Response:
 
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
-    # Store as a simple JSON field. If your UserProfile model doesn't have
-    # a `notification_prefs` JSONField yet, add it:
-    #   notification_prefs = models.JSONField(default=dict, blank=True)
-    # Until then, we silently accept and return 200 so the frontend's
-    # "local-only" fallback is not triggered.
     if hasattr(profile, 'notification_prefs'):
         existing = profile.notification_prefs or {}
         existing.update(prefs)
@@ -235,14 +286,11 @@ def forgot_password(request: Request) -> Response:
     """
     POST /api/users/forgot-password/
     Body: { email }
-
     Always returns 200 to prevent email enumeration.
-    Rate-limited to 5 requests per IP per 15 minutes.
     """
     ip     = _get_client_ip(request)
     rl_key = f'forgot_pw:{ip}'
     if _rate_limit(rl_key, limit=5, window=900):
-        # Still return a 200 — don't reveal that we're rate-limiting
         return Response({'message': 'If that email is registered, a reset link has been sent.'})
 
     email = request.data.get('email', '').strip().lower()
@@ -279,7 +327,7 @@ def forgot_password(request: Request) -> Response:
             to         = [user.email],
         ).send(fail_silently=True)
     except Exception:
-        pass   # Never reveal email errors to the client
+        pass
 
     logger.info('Password reset email sent to %s', email)
     return Response({'message': 'If that email is registered, a reset link has been sent.'})
@@ -291,23 +339,30 @@ def reset_password(request: Request) -> Response:
     """
     POST /api/users/reset-password/
     Body: { uid, token, newPassword }
-
-    Rate-limited to 10 attempts per IP per hour to prevent token brute-force.
     """
     ip     = _get_client_ip(request)
     rl_key = f'reset_pw:{ip}'
     if _rate_limit(rl_key, limit=10, window=3600):
-        return Response({'error': 'Too many attempts. Please try again later.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        return Response(
+            {'error': 'Too many attempts. Please try again later.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
 
     uid_b64      = request.data.get('uid', '')
     token        = request.data.get('token', '')
     new_password = request.data.get('newPassword', '').strip()
 
     if not uid_b64 or not token or not new_password:
-        return Response({'error': 'uid, token, and newPassword are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'uid, token, and newPassword are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if len(new_password) < 8:
-        return Response({'error': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'Password must be at least 8 characters.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     try:
         user_pk = force_str(urlsafe_base64_decode(uid_b64))
@@ -323,7 +378,6 @@ def reset_password(request: Request) -> Response:
 
     user.set_password(new_password)
     user.save()
-    # Clear rate-limit counter on success so the user isn't locked out
     cache.delete(rl_key)
     logger.info('Password reset completed for user %s', user.email)
     return Response({'message': 'Password reset successfully. You can now log in.'})
@@ -337,12 +391,6 @@ def admin_customer_list(request: Request) -> Response:
     """
     GET /api/users/admin/customers/
     Returns all non-staff users with order aggregates.
-
-    Query params:
-      ?search=<str>      filter by name or email
-      ?ordering=<field>  name | spent | orders  (default: name)
-      ?page=<int>        1-based page number     (default: 1)
-      ?page_size=<int>   results per page        (default: 50, max: 200)
     """
     search    = request.query_params.get('search', '').strip()
     ordering  = request.query_params.get('ordering', 'name')
@@ -350,7 +398,8 @@ def admin_customer_list(request: Request) -> Response:
         page      = max(1, int(request.query_params.get('page', 1)))
         page_size = min(200, max(1, int(request.query_params.get('page_size', 50))))
     except ValueError:
-        page = 1; page_size = 50
+        page = 1
+        page_size = 50
 
     qs = (
         User.objects
@@ -365,7 +414,6 @@ def admin_customer_list(request: Request) -> Response:
             Q(email__icontains=search)
         )
 
-    # Annotate — guard against missing orders relation gracefully
     try:
         qs = qs.annotate(
             order_count   = Count('orders', distinct=True),
@@ -411,6 +459,6 @@ def admin_customer_list(request: Request) -> Response:
         'count':     total_count,
         'page':      page,
         'page_size': page_size,
-        'pages':     max(1, -(-total_count // page_size)),  # ceiling division
+        'pages':     max(1, -(-total_count // page_size)),
         'results':   data,
     })

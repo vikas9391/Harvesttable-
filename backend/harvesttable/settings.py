@@ -1,5 +1,6 @@
 # harvesttable/settings.py
 from pathlib import Path
+from datetime import timedelta
 import os
 from dotenv import load_dotenv
 import dj_database_url
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework.authtoken',
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
     "cloudinary",
@@ -54,14 +56,11 @@ INSTALLED_APPS = [
 ]
 
 # -----------------------------------------------------------------------
-# Cookie settings — SameSite=None required for cross-origin session auth
-# (frontend on harvesttable.onrender.com → backend on harvesttable-szli.onrender.com)
+# Cookie / Session — kept for Django admin only
 # -----------------------------------------------------------------------
-SESSION_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SECURE   = True      # required when SameSite=None
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE    = 'None'
-CSRF_COOKIE_SECURE      = True      # required when SameSite=None
+SESSION_COOKIE_SECURE   = not DEBUG
+CSRF_COOKIE_SECURE      = not DEBUG
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
@@ -88,8 +87,8 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL  = os.getenv("DEFAULT_FROM_EMAIL")
 
 CONTACT_STAFF_EMAIL = 'support@harvesttable.com'
-
-BRAND_NAME = 'HarvestTable'
+BRAND_NAME          = 'HarvestTable'
+FRONTEND_URL        = os.getenv("FRONTEND_URL", "https://harvesttable.onrender.com")
 
 TEMPLATES = [
     {
@@ -141,15 +140,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Render terminates SSL at the edge and forwards via X-Forwarded-Proto
 # -----------------------------------------------------------------------
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER    = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT        = False
-    SECURE_HSTS_SECONDS        = 31536000   # 1 year
+    SECURE_PROXY_SSL_HEADER        = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT            = False
+    SECURE_HSTS_SECONDS            = 31536000   # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD        = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_PRELOAD            = True
+    SECURE_CONTENT_TYPE_NOSNIFF    = True
 
 # -----------------------------------------------------------------------
-# CORS — list every frontend origin that needs to call the API
+# CORS — Authorization header passes freely; credentials kept for admin
 # -----------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = [
     "https://harvesttable.onrender.com",
@@ -162,7 +161,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # -----------------------------------------------------------------------
-# CSRF — must include every origin that submits forms / session requests
+# CSRF — only needed for Django admin (API uses JWT Bearer tokens)
 # -----------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = [
     "https://harvesttable.onrender.com",
@@ -174,11 +173,12 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # -----------------------------------------------------------------------
-# Django REST Framework
+# Django REST Framework — JWT primary, session kept for Django admin
 # -----------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',  # Django admin
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -190,4 +190,15 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+}
+
+# -----------------------------------------------------------------------
+# SimpleJWT configuration
+# -----------------------------------------------------------------------
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS':  True,
+    'AUTH_HEADER_TYPES':      ('Bearer',),
+    'AUTH_TOKEN_CLASSES':     ('rest_framework_simplejwt.tokens.AccessToken',),
 }

@@ -1,47 +1,59 @@
 // src/lib/api.ts
 //
-// CSRF strategy
-// ─────────────
-// 1. App.tsx calls seedCSRF() on startup and waits for it before rendering.
-// 2. All subsequent calls go through apiFetch() which reads the already-seeded
-//    token — no race condition possible.
-// 3. If a 403 comes back AND it looks like a CSRF failure, we refresh once and retry.
-//    A plain 403 from IsAuthenticated / IsAdminUser is passed through as-is.
-// 4. If the CSRF endpoint itself fails we return '' so the app still renders.
+// Auth strategy (JWT)
+// ────────────────────
+// 1. On login/register the server returns { access, refresh } tokens.
+// 2. Tokens are stored in localStorage via setTokens().
+// 3. Every apiFetch() call attaches Authorization: Bearer <access>.
+// 4. On 401, we attempt a silent refresh via /api/users/refresh/.
+// 5. If refresh fails, tokens are cleared and the user is treated as logged out.
+// 6. No cookies, no CSRF — works cross-origin with no browser restrictions.
 //
 // Performance
 // ───────────
-// 5. GET deduplication  — concurrent identical GETs share one network request.
-// 6. GET response cache — 30 s TTL; call invalidateCache() after mutations.
+// 7. GET deduplication  — concurrent identical GETs share one network request.
+// 8. GET response cache — 30 s TTL; call invalidateCache() after mutations.
 //
 // Base URL
 // ────────
-// 7. All paths are prefixed with VITE_API_URL (falls back to the Render URL).
+// 9. All paths are prefixed with VITE_API_BASE_URL (falls back to Render URL).
 //    Pass a full https:// URL to bypass prefixing (e.g. third-party calls).
 
 // ── Base URL ──────────────────────────────────────────────────────────────────
 export const API_BASE: string =
   (import.meta as any).env?.VITE_API_BASE_URL ?? 'https://harvesttable-szli.onrender.com'
 
-
-/**
- * Resolve a path or full URL against API_BASE.
- * Full URLs (http/https) are returned unchanged so third-party calls are safe.
- */
 function resolveUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
     return pathOrUrl
   }
-  // Avoid double-slashes
   const base = API_BASE.replace(/\/$/, '')
   const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`
   return `${base}${path}`
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Token storage ─────────────────────────────────────────────────────────────
+export function setTokens(access: string, refresh: string): void {
+  localStorage.setItem('access_token', access)
+  localStorage.setItem('refresh_token', refresh)
+}
 
-let csrfToken: string | null = null
-let csrfPromise: Promise<string> | null = null
+export function getAccessToken(): string | null {
+  return localStorage.getItem('access_token')
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem('refresh_token')
+}
+
+export function clearTokens(): void {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+}
+
+export function isAuthenticated(): boolean {
+  return !!getAccessToken()
+}
 
 // ── In-flight deduplication (GET only) ───────────────────────────────────────
 const inFlight = new Map<string, Promise<Response>>()
@@ -51,19 +63,10 @@ interface CacheEntry { data: unknown; ts: number }
 const responseCache = new Map<string, CacheEntry>()
 const CACHE_TTL_MS  = 30_000   // 30 seconds
 
-/**
- * Bust the cache for a specific path or full URL.
- * Call after PATCH / DELETE on that resource so the next GET re-fetches.
- * @example invalidateCache('/api/users/me/')
- */
 export function invalidateCache(pathOrUrl: string): void {
   responseCache.delete(resolveUrl(pathOrUrl))
 }
 
-/**
- * Bust all cached URLs that start with a given prefix (resolved to absolute).
- * @example invalidateCachePrefix('/api/orders/')
- */
 export function invalidateCachePrefix(prefix: string): void {
   const resolved = resolveUrl(prefix)
   for (const key of responseCache.keys()) {
@@ -71,80 +74,79 @@ export function invalidateCachePrefix(prefix: string): void {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Silent token refresh ──────────────────────────────────────────────────────
+let refreshPromise: Promise<string | null> | null = null
 
-async function getCSRF(): Promise<string> {
-  if (csrfToken)   return csrfToken
-  if (csrfPromise) return csrfPromise
+async function refreshAccessToken(): Promise<string | null> {
+  // Deduplicate concurrent refresh attempts
+  if (refreshPromise) return refreshPromise
 
-  csrfPromise = fetch(resolveUrl('/api/users/csrf/'), {
-    method:      'GET',
-    credentials: 'include',
-    headers:     { 'Accept': 'application/json' },
-  })
-    .then(r => {
-      if (!r.ok) throw new Error(`CSRF endpoint returned ${r.status}`)
-      return r.json()
-    })
-    .then((data: { csrfToken: string }) => {
-      csrfToken   = data.csrfToken ?? ''
-      csrfPromise = null
-      return csrfToken
-    })
-    .catch(err => {
-      csrfPromise = null
-      console.warn('[api] CSRF fetch failed — requests may fail:', err)
-      return ''
-    })
+  refreshPromise = (async () => {
+    const refresh = getRefreshToken()
+    if (!refresh) return null
 
-  return csrfPromise
+    try {
+      const res = await fetch(resolveUrl('/api/users/refresh/'), {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ refresh }),
+      })
+
+      if (!res.ok) {
+        clearTokens()
+        return null
+      }
+
+      const data: { access: string; refresh: string } = await res.json()
+      setTokens(data.access, data.refresh)
+      return data.access
+    } catch {
+      clearTokens()
+      return null
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
 }
 
-/** Call once at app startup (App.tsx). Blocks rendering until cookie is seeded. */
-export async function seedCSRF(): Promise<void> {
-  await getCSRF()
-}
-
-/** Returns true only when Django's CSRF middleware rejected the request. */
-async function isCsrfFailure(res: Response): Promise<boolean> {
-  const reason = res.headers.get('X-Reason') ?? res.headers.get('Reason') ?? ''
-  if (reason.toLowerCase().includes('csrf')) return true
-
-  try {
-    const text = await res.clone().text()
-    return (
-      text.includes('CSRF') ||
-      text.includes('csrf') ||
-      (text.includes('Forbidden') && text.includes('token'))
-    )
-  } catch {
-    return false
+// ── Build request headers ─────────────────────────────────────────────────────
+function buildHeaders(
+  token: string | null,
+  extra?: HeadersInit,
+): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(extra as Record<string, string> | undefined ?? {}),
   }
+}
+
+// ── seedCSRF — kept as a no-op so App.tsx doesn't need changes ────────────────
+/** @deprecated No longer needed with JWT auth. Safe to remove from App.tsx. */
+export async function seedCSRF(): Promise<void> {
+  // No-op — JWT doesn't use CSRF tokens
 }
 
 /**
  * Drop-in replacement for fetch() that:
- *  - Resolves relative paths against VITE_API_URL (or Render fallback)
- *  - Always includes credentials (session cookie)
- *  - Always sets Content-Type: application/json
- *  - Always attaches the current X-CSRFToken header
+ *  - Resolves relative paths against VITE_API_BASE_URL
+ *  - Attaches Authorization: Bearer <token> on every request
+ *  - Silently refreshes the access token on 401 and retries once
  *  - Deduplicates concurrent identical GET requests
  *  - Caches GET responses for 30 s (pass { cache: 'no-store' } to bypass)
- *  - Retries once on genuine CSRF rejection (403), not on auth/permission 403s
  */
-export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Promise<Response> {
+export async function apiFetch(
+  pathOrUrl: string,
+  options: RequestInit = {},
+): Promise<Response> {
   const url         = resolveUrl(pathOrUrl)
-  const csrf        = await getCSRF()
   const method      = (options.method ?? 'GET').toUpperCase()
   const bypassCache = options.cache === 'no-store'
+  const token       = getAccessToken()
 
-  const buildHeaders = (token: string): Record<string, string> => ({
-    'Content-Type': 'application/json',
-    ...(token ? { 'X-CSRFToken': token } : {}),
-    ...(options.headers as Record<string, string> | undefined ?? {}),
-  })
-
-  // ── GET fast-path: cache → dedup → fetch ─────────────────────────────────
+  // ── GET fast-path: cache → dedup → fetch ───────────────────────────────
   if (method === 'GET' && !bypassCache) {
 
     // 1. Return cached response if still fresh
@@ -156,18 +158,28 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
       })
     }
 
-    // 2. Join an existing in-flight request rather than firing a duplicate
+    // 2. Join an in-flight request rather than firing a duplicate
     const existing = inFlight.get(url)
     if (existing) return existing.then(r => r.clone())
 
-    // 3. Real network request — store in inFlight while pending
+    // 3. Real network request
     const promise = fetch(url, {
       ...options,
-      credentials: 'include',
-      headers:     buildHeaders(csrf),
+      headers: buildHeaders(token, options.headers),
     })
       .then(async res => {
         inFlight.delete(url)
+
+        // Silent refresh on 401
+        if (res.status === 401) {
+          const newToken = await refreshAccessToken()
+          if (newToken) {
+            return fetch(url, {
+              ...options,
+              headers: buildHeaders(newToken, options.headers),
+            })
+          }
+        }
 
         if (res.ok) {
           try {
@@ -176,13 +188,6 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
           } catch {
             // Non-JSON — skip caching
           }
-        }
-
-        if (res.status === 403 && await isCsrfFailure(res)) {
-          csrfToken   = null
-          csrfPromise = null
-          const fresh = await getCSRF()
-          return fetch(url, { ...options, credentials: 'include', headers: buildHeaders(fresh) })
         }
 
         return res
@@ -199,15 +204,18 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
   // ── Non-GET (POST / PATCH / DELETE) ──────────────────────────────────────
   const res = await fetch(url, {
     ...options,
-    credentials: 'include',
-    headers:     buildHeaders(csrf),
+    headers: buildHeaders(token, options.headers),
   })
 
-  if (res.status === 403 && await isCsrfFailure(res)) {
-    csrfToken   = null
-    csrfPromise = null
-    const fresh = await getCSRF()
-    return fetch(url, { ...options, credentials: 'include', headers: buildHeaders(fresh) })
+  // Silent refresh on 401
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      return fetch(url, {
+        ...options,
+        headers: buildHeaders(newToken, options.headers),
+      })
+    }
   }
 
   return res
