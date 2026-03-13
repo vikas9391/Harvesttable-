@@ -1,27 +1,13 @@
-// src/components/ChatBot.tsx
-// Fixes & improvements over the original:
-//  1. CSRF now reads from the shared api.ts seedCSRF / cookie — no more racing
-//     first-load. Falls back to reading the cookie directly (belt + suspenders).
-//  2. Quick-reply navigation uses React Router's navigate() instead of
-//     window.location.href — no full page reload, state is preserved.
-//  3. Non-navigation quick replies send the i18n KEY to the backend but display
-//     the translated label in the user bubble — backend can match raw keys
-//     rather than language-specific strings.
-//  4. hasOpened is persisted to localStorage so the FAB shake stops permanently
-//     after the user has opened the chat at least once, even across page loads.
-//  5. Enter-key guard explicitly checks trimmed length (was relying only on
-//     sendMessage's internal guard, now also blocked at the handler level).
-//  6. Textarea auto-height resets correctly on message send.
-//  7. Unread badge clears on open regardless of how chat was opened.
-//  8. RTL-aware bubble border radii corrected for all four cases.
-//  9. Escape key closes the chat window.
-// 10. Full TypeScript — no implicit `any`.
-
 import React, {
   useState, useEffect, useRef, useCallback,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../context/Languagecontext'
+
+// ── Backend base URL ──────────────────────────────────────────────────────────
+const API_BASE: string =
+  (import.meta as any).env?.VITE_API_BASE_URL ?? 'https://harvesttable-szli.onrender.com'
+
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -327,7 +313,7 @@ const ChatBot: React.FC = () => {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/chatbot/chat/', {
+      const res = await fetch(`${API_BASE}/api/chatbot/chat/`, {
         method:      'POST',
         credentials: 'include',
         headers: {

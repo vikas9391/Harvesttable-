@@ -6,6 +6,9 @@ import { useLanguage } from '../context/Languagecontext';
 import { Product } from '../types';
 import ProductImage from '../components/ProductImage';
 
+// ── API base URL from environment ─────────────────────────────────────────────
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com';
+
 const C = {
   bg: '#faf7f2', surface: '#ffffff', border: '#ede5d8', borderHov: '#c8a882',
   borderErr: '#e08070',
@@ -320,7 +323,8 @@ const CheckoutPage: React.FC = () => {
     };
 
     try {
-      const res = await fetch('/api/orders/', {
+      // ── Uses VITE_API_BASE_URL env variable ───────────────────────────
+      const res = await fetch(`${API_BASE_URL}/api/orders/`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
         body: JSON.stringify(payload),

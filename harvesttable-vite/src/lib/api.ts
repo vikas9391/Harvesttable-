@@ -13,6 +13,32 @@
 // ───────────
 // 5. GET deduplication  — concurrent identical GETs share one network request.
 // 6. GET response cache — 30 s TTL; call invalidateCache() after mutations.
+//
+// Base URL
+// ────────
+// 7. All paths are prefixed with VITE_API_URL (falls back to the Render URL).
+//    Pass a full https:// URL to bypass prefixing (e.g. third-party calls).
+
+// ── Base URL ──────────────────────────────────────────────────────────────────
+export const API_BASE: string =
+  (import.meta as any).env?.VITE_API_BASE_URL ?? 'https://harvesttable-szli.onrender.com'
+
+
+/**
+ * Resolve a path or full URL against API_BASE.
+ * Full URLs (http/https) are returned unchanged so third-party calls are safe.
+ */
+function resolveUrl(pathOrUrl: string): string {
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+    return pathOrUrl
+  }
+  // Avoid double-slashes
+  const base = API_BASE.replace(/\/$/, '')
+  const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`
+  return `${base}${path}`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 let csrfToken: string | null = null
 let csrfPromise: Promise<string> | null = null
@@ -26,21 +52,22 @@ const responseCache = new Map<string, CacheEntry>()
 const CACHE_TTL_MS  = 30_000   // 30 seconds
 
 /**
- * Bust the cache for a specific URL.
+ * Bust the cache for a specific path or full URL.
  * Call after PATCH / DELETE on that resource so the next GET re-fetches.
  * @example invalidateCache('/api/users/me/')
  */
-export function invalidateCache(url: string): void {
-  responseCache.delete(url)
+export function invalidateCache(pathOrUrl: string): void {
+  responseCache.delete(resolveUrl(pathOrUrl))
 }
 
 /**
- * Bust all cached URLs that start with a given prefix.
+ * Bust all cached URLs that start with a given prefix (resolved to absolute).
  * @example invalidateCachePrefix('/api/orders/')
  */
 export function invalidateCachePrefix(prefix: string): void {
+  const resolved = resolveUrl(prefix)
   for (const key of responseCache.keys()) {
-    if (key.startsWith(prefix)) responseCache.delete(key)
+    if (key.startsWith(resolved)) responseCache.delete(key)
   }
 }
 
@@ -50,7 +77,7 @@ async function getCSRF(): Promise<string> {
   if (csrfToken)   return csrfToken
   if (csrfPromise) return csrfPromise
 
-  csrfPromise = fetch('/api/users/csrf/', {
+  csrfPromise = fetch(resolveUrl('/api/users/csrf/'), {
     method:      'GET',
     credentials: 'include',
     headers:     { 'Accept': 'application/json' },
@@ -97,6 +124,7 @@ async function isCsrfFailure(res: Response): Promise<boolean> {
 
 /**
  * Drop-in replacement for fetch() that:
+ *  - Resolves relative paths against VITE_API_URL (or Render fallback)
  *  - Always includes credentials (session cookie)
  *  - Always sets Content-Type: application/json
  *  - Always attaches the current X-CSRFToken header
@@ -104,7 +132,8 @@ async function isCsrfFailure(res: Response): Promise<boolean> {
  *  - Caches GET responses for 30 s (pass { cache: 'no-store' } to bypass)
  *  - Retries once on genuine CSRF rejection (403), not on auth/permission 403s
  */
-export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Promise<Response> {
+  const url         = resolveUrl(pathOrUrl)
   const csrf        = await getCSRF()
   const method      = (options.method ?? 'GET').toUpperCase()
   const bypassCache = options.cache === 'no-store'

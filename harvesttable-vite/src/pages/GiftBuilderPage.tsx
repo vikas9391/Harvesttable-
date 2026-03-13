@@ -5,6 +5,9 @@ import ProductImage from '../components/ProductImage';
 import { useCart, GiftBoxSize, GiftBoxProduct } from '../context/CartContext';
 import { useLanguage } from '../context/Languagecontext';
 
+// ── API base URL from environment ─────────────────────────────────────────────
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com';
+
 const C = {
   bg: '#faf7f2', surface: '#ffffff', surfaceAlt: '#fdf9f4', border: '#ede5d8', borderHov: '#c8a882',
   heading: '#2a1a0e', body: '#5a4030', muted: '#a08878', accent: '#7a4a28', accentHov: '#8f5830',
@@ -56,7 +59,7 @@ const GiftBuilderPage: React.FC = () => {
   const [products, setProducts]           = useState<Product[]>([]);
 
   useEffect(() => {
-    fetch('/api/products/?page_size=200')
+    fetch(`${API_BASE_URL}/api/products/?page_size=200`)
       .then(r => r.json())
       .then(data => setProducts(Array.isArray(data) ? data : data.results ?? []))
       .catch(() => {});
@@ -97,7 +100,7 @@ const GiftBuilderPage: React.FC = () => {
       slug:      p.slug,
       price:     p.price,
       category:  p.category,
-      image_url: p.image_url ?? undefined,  // convert null → undefined
+      image_url: p.image_url ?? undefined,
       imageType: p.imageType,
       name_fr:   p.name_fr,
       name_ar:   p.name_ar,
@@ -112,7 +115,6 @@ const GiftBuilderPage: React.FC = () => {
       setAdded(true);
       setTimeout(() => {
         setAdded(false);
-        // Reset for another box — stay on step 3 with a fresh CTA
       }, 2200);
     } finally {
       setAdding(false);

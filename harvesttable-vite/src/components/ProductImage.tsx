@@ -99,9 +99,9 @@ const keyframes = `
 `
 
 // ── Resolve relative Django media URLs to absolute ────────────────────────────
-// Django's build_absolute_uri should return full URLs, but if a proxy or dev
-// server strips the host, we prefix with the backend base URL.
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000'
+// Falls back to the Render deployment URL if the env variable is not set.
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? 'https://harvesttable-szli.onrender.com'
+
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null

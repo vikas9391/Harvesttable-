@@ -2,6 +2,9 @@
 import React, { useState, useEffect, useRef, ReactNode, CSSProperties, RefObject } from "react";
 import { useLanguage } from "../context/Languagecontext";
 
+// ── API base URL from environment ─────────────────────────────────────────────
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://harvesttable-szli.onrender.com";
+
 function useInView(t = 0.12): [RefObject<HTMLDivElement>, boolean] {
   const ref = useRef<HTMLDivElement>(null);
   const [v, setV] = useState(false);
@@ -71,7 +74,7 @@ const Contact: React.FC = () => {
     setSending(true);
 
     try {
-      const res = await fetch("/api/contact/submit/", {
+      const res = await fetch(`${API_BASE_URL}/api/contact/submit/`, {
         method:      "POST",
         credentials: "include",
         headers: {

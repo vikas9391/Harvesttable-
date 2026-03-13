@@ -14,7 +14,7 @@ const C = {
 };
 
 // ── Resolve relative Django media URLs to absolute ────────────────────────────
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com';
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;

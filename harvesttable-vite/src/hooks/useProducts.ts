@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { PRODUCTS } from '../data/products'
 import type { Product } from '../types'
 
+// ── API base URL from environment ─────────────────────────────────────────────
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com'
+
 // Re-export Product as ApiProduct so imports in pages stay consistent
 export type ApiProduct = Product
 
@@ -82,7 +85,7 @@ export function useProducts(opts: UseProductsOptions = {}): ProductsState {
     setLoading(true)
     setError(null)
 
-    fetch(`/api/products/${buildQuery(opts)}`, { credentials: 'include' })
+    fetch(`${API_BASE_URL}/api/products/${buildQuery(opts)}`, { credentials: 'include' })
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -117,7 +120,7 @@ export function useProduct(slug: string | undefined) {
     let cancelled = false
     setLoading(true); setError(null)
 
-    fetch(`/api/products/${slug}/`, { credentials: 'include' })
+    fetch(`${API_BASE_URL}/api/products/${slug}/`, { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((data: ApiProduct) => { if (!cancelled) setProduct(data) })
       .catch(() => {
@@ -143,7 +146,7 @@ export function useFeaturedProducts() {
   useEffect(() => {
     let cancelled = false
 
-    fetch('/api/products/featured/', { credentials: 'include' })
+    fetch(`${API_BASE_URL}/api/products/featured/`, { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
         if (!cancelled)
@@ -169,7 +172,7 @@ export function useSeasonalProducts() {
   useEffect(() => {
     let cancelled = false
 
-    fetch('/api/products/seasonal/', { credentials: 'include' })
+    fetch(`${API_BASE_URL}/api/products/seasonal/`, { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
         if (!cancelled)
