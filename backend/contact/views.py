@@ -1,5 +1,7 @@
 # contact/views.py
 from typing import Any
+import threading
+import logging
 
 from django.db import models as db_models
 from rest_framework import status
@@ -9,7 +11,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from typing import cast
 
-
 from .models import ContactMessage
 from .serializers import (
     ContactFormSerializer,
@@ -18,6 +19,8 @@ from .serializers import (
     UpdateStatusSerializer,
 )
 from .emails import send_auto_reply, send_staff_notification
+
+logger = logging.getLogger(__name__)
 
 
 def _get_ip(request: Request) -> str | None:
@@ -32,9 +35,28 @@ def _parse_lang(raw: Any) -> str:
     return code if code in ('en', 'fr', 'ar') else 'en'
 
 
+def _send_emails_async(msg: ContactMessage) -> None:
+    """
+    Fire emails in a background thread so the HTTP response is returned
+    immediately — SMTP connections can take several seconds and would
+    otherwise cause gunicorn worker timeouts.
+    """
+    def _send():
+        try:
+            send_auto_reply(msg)
+        except Exception as exc:
+            logger.warning('Auto-reply failed for #%s: %s', msg.pk, exc)
+        try:
+            send_staff_notification(msg)
+        except Exception as exc:
+            logger.warning('Staff notification failed for #%s: %s', msg.pk, exc)
+
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/contact/submit/
-# Public — anyone can submit the form (logged-in or anonymous)
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -46,7 +68,6 @@ def submit(request: Request) -> Response:
     data: dict[str, Any] = cast(dict[str, Any], ser.validated_data)
     lang = _parse_lang(data.get('lang'))
 
-    # ── Create the record ──────────────────────────────────────────────────
     msg = ContactMessage.objects.create(
         name       = data['name'].strip(),
         email      = data['email'].strip().lower(),
@@ -58,15 +79,14 @@ def submit(request: Request) -> Response:
         user_agent = request.META.get('HTTP_USER_AGENT', ''),
     )
 
-    # ── Send emails (non-blocking — failures are logged, not raised) ───────
-    send_auto_reply(msg)
-    send_staff_notification(msg)
+    # Send emails in background — never block the HTTP response
+    _send_emails_async(msg)
 
     return Response(
         {
             'success':    True,
             'message_id': msg.pk,
-            'detail':     'Your message has been received. We\'ll be in touch within 24 hours.',
+            'detail':     "Your message has been received. We'll be in touch within 24 hours.",
         },
         status=status.HTTP_201_CREATED,
     )
@@ -74,24 +94,20 @@ def submit(request: Request) -> Response:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/contact/admin/messages/
-# Admin — paginated list with search + status filter
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_list(request: Request) -> Response:
     qs = ContactMessage.objects.select_related('user').all()
 
-    # Filter by status
     status_param = request.query_params.get('status', '').strip()
     if status_param in ('new', 'in_progress', 'resolved', 'spam'):
         qs = qs.filter(status=status_param)
 
-    # Filter by language
     lang_param = request.query_params.get('lang', '').strip().lower()
     if lang_param in ('en', 'fr', 'ar'):
         qs = qs.filter(lang=lang_param)
 
-    # Search across name / email / subject / message
     search = request.query_params.get('search', '').strip()
     if search:
         qs = qs.filter(
@@ -101,7 +117,6 @@ def admin_list(request: Request) -> Response:
             | db_models.Q(message__icontains=search)
         )
 
-    # Pagination
     page      = max(int(request.query_params.get('page', 1)), 1)
     page_size = min(int(request.query_params.get('page_size', 25)), 100)
     start     = (page - 1) * page_size
@@ -116,7 +131,6 @@ def admin_list(request: Request) -> Response:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/contact/admin/messages/<pk>/
-# Admin — full detail view
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
@@ -129,7 +143,6 @@ def admin_detail(request: Request, pk: int) -> Response:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/contact/admin/messages/<pk>/status/
-# Admin — update status and optional internal note
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
@@ -146,7 +159,6 @@ def admin_update_status(request: Request, pk: int) -> Response:
     update_fields = ['status', 'updated_at']
 
     msg.status = data['status']
-
     if data.get('admin_note'):
         msg.admin_note = data['admin_note']
         update_fields.append('admin_note')
@@ -162,7 +174,6 @@ def admin_update_status(request: Request, pk: int) -> Response:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DELETE /api/contact/admin/messages/<pk>/
-# Admin — hard delete a message
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser])
@@ -176,7 +187,6 @@ def admin_delete(request: Request, pk: int) -> Response:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/contact/admin/stats/
-# Admin — summary counts for dashboard
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
@@ -186,8 +196,7 @@ def admin_stats(request: Request) -> Response:
 
     now      = timezone.now()
     week_ago = now - timedelta(days=7)
-
-    total = ContactMessage.objects.count()
+    total    = ContactMessage.objects.count()
 
     return Response({
         'total':       total,
