@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',  # enables logout blacklisting
+    'rest_framework_simplejwt.token_blacklist',
 
     'corsheaders',
     'django_filters',
@@ -142,19 +142,18 @@ MEDIA_ROOT  = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # -----------------------------------------------------------------------
-# HTTPS / Security — applied only in production (when DEBUG=False)
-# Render terminates SSL at the edge and forwards via X-Forwarded-Proto
+# HTTPS / Security
 # -----------------------------------------------------------------------
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER        = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT            = False
-    SECURE_HSTS_SECONDS            = 31536000   # 1 year
+    SECURE_HSTS_SECONDS            = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD            = True
     SECURE_CONTENT_TYPE_NOSNIFF    = True
 
 # -----------------------------------------------------------------------
-# CORS — Authorization header passes freely; credentials kept for admin
+# CORS
 # -----------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = [
     "https://harvesttable.onrender.com",
@@ -167,7 +166,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # -----------------------------------------------------------------------
-# CSRF — only needed for Django admin (API uses JWT Bearer tokens)
+# CSRF — only needed for Django admin
 # -----------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = [
     "https://harvesttable.onrender.com",
@@ -179,13 +178,9 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # -----------------------------------------------------------------------
-# Django REST Framework
-#
-# SessionAuthentication is intentionally removed from DEFAULT_AUTHENTICATION_CLASSES.
-# It enforces CSRF checks on every request — including AllowAny endpoints like
-# /contact/submit/ and /users/login/ — which breaks cross-origin POST requests
-# that don't carry a CSRF cookie. JWT handles all API auth; Django admin uses
-# its own session auth independently and is unaffected by this setting.
+# Django REST Framework — JWT only, no SessionAuthentication
+# SessionAuthentication enforces CSRF on ALL requests including AllowAny
+# endpoints, breaking cross-origin POST requests without a CSRF cookie.
 # -----------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -204,13 +199,49 @@ REST_FRAMEWORK = {
 }
 
 # -----------------------------------------------------------------------
-# SimpleJWT configuration
+# SimpleJWT
 # -----------------------------------------------------------------------
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME':    timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME':   timedelta(days=7),
     'ROTATE_REFRESH_TOKENS':    True,
-    'BLACKLIST_AFTER_ROTATION': True,   # requires token_blacklist in INSTALLED_APPS
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES':        ('Bearer',),
     'AUTH_TOKEN_CLASSES':       ('rest_framework_simplejwt.tokens.AccessToken',),
+}
+
+# -----------------------------------------------------------------------
+# Logging — surfaces errors in Render logs
+# -----------------------------------------------------------------------
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {name} — {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class':     'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level':    'INFO',
+    },
+    'loggers': {
+        'contact': {
+            'handlers':  ['console'],
+            'level':     'DEBUG',
+            'propagate': False,
+        },
+        'django': {
+            'handlers':  ['console'],
+            'level':     'WARNING',
+            'propagate': False,
+        },
+    },
 }

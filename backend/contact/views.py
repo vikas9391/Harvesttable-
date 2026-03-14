@@ -2,6 +2,7 @@
 from typing import Any
 import threading
 import logging
+import traceback
 
 from django.db import models as db_models
 from rest_framework import status
@@ -42,17 +43,29 @@ def _send_emails_async(msg: ContactMessage) -> None:
     otherwise cause gunicorn worker timeouts.
     """
     def _send():
+        logger.info('[contact] Sending auto-reply to %s for message #%s', msg.email, msg.pk)
         try:
             send_auto_reply(msg)
+            logger.info('[contact] Auto-reply sent successfully to %s', msg.email)
         except Exception as exc:
-            logger.warning('Auto-reply failed for #%s: %s', msg.pk, exc)
+            logger.error(
+                '[contact] Auto-reply FAILED for #%s to %s: %s\n%s',
+                msg.pk, msg.email, exc, traceback.format_exc()
+            )
+
+        logger.info('[contact] Sending staff notification for message #%s', msg.pk)
         try:
             send_staff_notification(msg)
+            logger.info('[contact] Staff notification sent successfully for #%s', msg.pk)
         except Exception as exc:
-            logger.warning('Staff notification failed for #%s: %s', msg.pk, exc)
+            logger.error(
+                '[contact] Staff notification FAILED for #%s: %s\n%s',
+                msg.pk, exc, traceback.format_exc()
+            )
 
     thread = threading.Thread(target=_send, daemon=True)
     thread.start()
+    logger.info('[contact] Email thread started for message #%s', msg.pk)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +91,8 @@ def submit(request: Request) -> Response:
         ip_address = _get_ip(request),
         user_agent = request.META.get('HTTP_USER_AGENT', ''),
     )
+
+    logger.info('[contact] Message #%s created from %s', msg.pk, msg.email)
 
     # Send emails in background — never block the HTTP response
     _send_emails_async(msg)
