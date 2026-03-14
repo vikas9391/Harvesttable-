@@ -1,9 +1,7 @@
 // src/pages/Contact.tsx
 import React, { useState, useEffect, useRef, ReactNode, CSSProperties, RefObject } from "react";
 import { useLanguage } from "../context/Languagecontext";
-
-// ── API base URL from environment ─────────────────────────────────────────────
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://harvesttable-szli.onrender.com";
+import { apiFetch } from "../lib/api";
 
 function useInView(t = 0.12): [RefObject<HTMLDivElement>, boolean] {
   const ref = useRef<HTMLDivElement>(null);
@@ -36,12 +34,6 @@ const Slide: React.FC<{
   );
 };
 
-// ─── CSRF helper ─────────────────────────────────────────────────────────────
-const getCsrfToken = (): string => {
-  const m = document.cookie.match(/csrftoken=([^;]+)/);
-  return m ? m[1] : "";
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 const Contact: React.FC = () => {
   const { isRTL, t, lang } = useLanguage();
@@ -67,33 +59,27 @@ const Contact: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [error, setError]     = useState<string | null>(null);
 
-  // ── Submit handler — calls Django /api/contact/submit/ ──────────────────
+  // ── Submit handler — uses apiFetch (JWT, no CSRF cookies needed) ────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSending(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/contact/submit/`, {
-        method:      "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken":  getCsrfToken(),
-        },
+      const res = await apiFetch('/api/contact/submit/', {
+        method: 'POST',
         body: JSON.stringify({
           name:    form.name.trim(),
           email:   form.email.trim(),
           subject: form.subject.trim(),
           message: form.message.trim(),
-          lang,          // ← current UI language sent to backend
+          lang,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        // Surface the first validation error returned by DRF
         const firstError =
           typeof data === "object"
             ? Object.values(data).flat().join(" ")

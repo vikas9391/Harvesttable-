@@ -43,6 +43,8 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',  # enables logout blacklisting
 
     'corsheaders',
     'django_filters',
@@ -119,6 +121,7 @@ DATABASES = {
         engine='django.db.backends.postgresql',
     )
 }
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -176,12 +179,17 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # -----------------------------------------------------------------------
-# Django REST Framework — JWT primary, session kept for Django admin
+# Django REST Framework
+#
+# SessionAuthentication is intentionally removed from DEFAULT_AUTHENTICATION_CLASSES.
+# It enforces CSRF checks on every request — including AllowAny endpoints like
+# /contact/submit/ and /users/login/ — which breaks cross-origin POST requests
+# that don't carry a CSRF cookie. JWT handles all API auth; Django admin uses
+# its own session auth independently and is unaffected by this setting.
 # -----------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',  # Django admin
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -199,9 +207,10 @@ REST_FRAMEWORK = {
 # SimpleJWT configuration
 # -----------------------------------------------------------------------
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS':  True,
-    'AUTH_HEADER_TYPES':      ('Bearer',),
-    'AUTH_TOKEN_CLASSES':     ('rest_framework_simplejwt.tokens.AccessToken',),
+    'ACCESS_TOKEN_LIFETIME':    timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME':   timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS':    True,
+    'BLACKLIST_AFTER_ROTATION': True,   # requires token_blacklist in INSTALLED_APPS
+    'AUTH_HEADER_TYPES':        ('Bearer',),
+    'AUTH_TOKEN_CLASSES':       ('rest_framework_simplejwt.tokens.AccessToken',),
 }
