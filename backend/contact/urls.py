@@ -1,6 +1,8 @@
 # contact/urls.py
 from django.urls import path
 from . import views
+from rest_framework_simplejwt.views import TokenRefreshView
+
 
 app_name = 'contact'
 
@@ -11,13 +13,16 @@ urlpatterns = [
 
     # ── Admin ─────────────────────────────────────────────────────────────
     # GET   /api/contact/admin/messages/
-    path('admin/messages/',              views.admin_list,          name='admin-list'),
+    path('admin/messages/',views.admin_list,name='admin-list'),
+
+    path('api/users/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
     # GET   /api/contact/admin/messages/<pk>/
-    path('admin/messages/<int:pk>/',     views.admin_detail,        name='admin-detail'),
+    path('admin/messages/<int:pk>/',views.admin_detail,name='admin-detail'),
     # POST  /api/contact/admin/messages/<pk>/status/
-    path('admin/messages/<int:pk>/status/', views.admin_update_status, name='admin-status'),
+    path('admin/messages/<int:pk>/status/',views.admin_update_status,name='admin-status'),
     # DELETE /api/contact/admin/messages/<pk>/
-    path('admin/messages/<int:pk>/delete/', views.admin_delete,     name='admin-delete'),
+    path('admin/messages/<int:pk>/delete/',views.admin_delete,name='admin-delete'),
     # GET   /api/contact/admin/stats/
-    path('admin/stats/',                 views.admin_stats,         name='admin-stats'),
+    path('admin/stats/',views.admin_stats,name='admin-stats'),
 ]

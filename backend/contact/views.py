@@ -11,6 +11,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from typing import cast
+from rest_framework.decorators import api_view, permission_classes, authentication_classes  # add authentication_classes
 
 from .models import ContactMessage
 from .serializers import (
@@ -72,6 +73,7 @@ def _send_emails_async(msg: ContactMessage) -> None:
 # POST /api/contact/submit/
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(['POST'])
+@authentication_classes([])   # ← skip JWT authentication entirely
 @permission_classes([AllowAny])
 def submit(request: Request) -> Response:
     ser = ContactFormSerializer(data=request.data)
