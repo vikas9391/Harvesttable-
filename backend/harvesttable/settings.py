@@ -209,6 +209,10 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES':        ('Bearer',),
     'AUTH_TOKEN_CLASSES':       ('rest_framework_simplejwt.tokens.AccessToken',),
 }
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"  # explicit default
+)
 
 # -----------------------------------------------------------------------
 # Logging — surfaces errors in Render logs
