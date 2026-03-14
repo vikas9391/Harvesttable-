@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, createContext, useContext, useCallb
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import CartDrawer from './CartDrawer'
-import { apiFetch } from '../lib/api'
+import { apiFetch, setTokens, clearTokens, getRefreshToken } from '../lib/api'
 import { useLanguage, LangCode } from '../context/Languagecontext'
 
 const C = {
@@ -32,26 +32,22 @@ export const AuthContext = createContext<AuthCtxType>({
 })
 export const useAuth = () => useContext(AuthContext)
 
-// In src/components/Navbar.tsx
-// Replace the AuthProvider component's useEffect with this version.
-// Everything else in the file stays exactly the same.
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser]               = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
+  // On mount — if we have a stored access token, fetch the current user
   useEffect(() => {
-    // Guard against React Strict Mode's double-invoke in development.
-    // The AbortController lets us cancel the in-flight fetch when the
-    // effect is cleaned up before it resolves.
     const controller = new AbortController()
     let cancelled = false
 
     apiFetch('/api/users/me/', { signal: controller.signal })
       .then(r => {
         if (cancelled) return null
-        // 401 / 403 = not logged in — leave user as null
-        if (r.status === 401 || r.status === 403) return null
+        if (r.status === 401 || r.status === 403) {
+          clearTokens()
+          return null
+        }
         if (!r.ok) return null
         return r.json()
       })
@@ -60,9 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data && data.id) setUser(data)
       })
       .catch(err => {
-        // AbortError is expected on cleanup — don't log it
         if (err?.name === 'AbortError') return
-        // Network error — treat as logged out, don't crash
+        // Network error — treat as logged out
       })
       .finally(() => {
         if (!cancelled) setAuthLoading(false)
@@ -81,6 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Login failed.')
+
+    // Store JWT tokens
+    if (data.access && data.refresh) {
+      setTokens(data.access, data.refresh)
+    }
+
     setUser(data)
     return data
   }
@@ -94,11 +95,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Registration failed.')
+
+    // Store JWT tokens
+    if (data.access && data.refresh) {
+      setTokens(data.access, data.refresh)
+    }
+
     setUser(data)
   }
 
   const logout = async (): Promise<void> => {
-    await apiFetch('/api/users/logout/', { method: 'POST' })
+    const refresh = getRefreshToken()
+    try {
+      await apiFetch('/api/users/logout/', {
+        method: 'POST',
+        body:   JSON.stringify({ refresh: refresh ?? '' }),
+      })
+    } catch {
+      // Swallow network errors on logout — we clear locally regardless
+    }
+    clearTokens()
     setUser(null)
   }
 
@@ -229,23 +245,12 @@ const TranslateNudge: React.FC = () => {
     <div
       dir="ltr"
       style={{
-        position: 'fixed',
-        bottom: 28,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 99999,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        padding: '13px 18px',
-        borderRadius: 16,
-        backgroundColor: '#2a1a0e',
-        color: '#faf7f2',
-        fontSize: 13,
-        fontWeight: 500,
+        position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 99999, display: 'flex', alignItems: 'center', gap: 14,
+        padding: '13px 18px', borderRadius: 16, backgroundColor: '#2a1a0e',
+        color: '#faf7f2', fontSize: 13, fontWeight: 500,
         boxShadow: '0 12px 40px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.18)',
-        whiteSpace: 'nowrap',
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        whiteSpace: 'nowrap', fontFamily: "'DM Sans', system-ui, sans-serif",
         animation: 'nudgeIn 0.35s cubic-bezier(0.22,1,0.36,1)',
         border: '1px solid rgba(255,255,255,0.08)',
       }}
@@ -256,11 +261,9 @@ const TranslateNudge: React.FC = () => {
           to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
         }
       `}</style>
-
       <span style={{ display: 'flex', alignItems: 'center', color: '#c8a882', flexShrink: 0 }}>
         <IconGlobe size={16} />
       </span>
-
       <span style={{ color: '#e8d8c4' }}>
         Use our{' '}
         <span style={{ color: '#c8a882', fontWeight: 700 }}>built-in language switcher</span>
@@ -268,20 +271,13 @@ const TranslateNudge: React.FC = () => {
         <span style={{ color: '#c8a882', fontSize: 11 }}>( EN / FR / AR )</span>
         {' '}for the best experience.
       </span>
-
       <button
         onClick={() => { setShow(false); setDismissed(true) }}
         style={{
-          flexShrink: 0,
-          background: 'rgba(255,255,255,0.12)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          color: '#faf7f2',
-          borderRadius: 8,
-          padding: '5px 12px',
-          cursor: 'pointer',
-          fontSize: 12,
-          fontWeight: 600,
-          transition: 'background 0.15s',
+          flexShrink: 0, background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.15)', color: '#faf7f2',
+          borderRadius: 8, padding: '5px 12px', cursor: 'pointer',
+          fontSize: 12, fontWeight: 600, transition: 'background 0.15s',
         }}
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.20)'}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
@@ -307,16 +303,11 @@ const LangMenu: React.FC = () => {
 
   useEffect(() => {
     if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
+    const handler    = (e: MouseEvent)   => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', handler)
     document.addEventListener('keydown', keyHandler)
-    return () => {
-      document.removeEventListener('mousedown', handler)
-      document.removeEventListener('keydown', keyHandler)
-    }
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', keyHandler) }
   }, [open])
 
   return (
@@ -325,8 +316,7 @@ const LangMenu: React.FC = () => {
         onClick={() => setOpen(v => !v)}
         className="flex items-center justify-center gap-1.5 rounded-lg transition-colors"
         style={{
-          padding: '7px 10px',
-          color: open ? C.accent : C.linkDefault,
+          padding: '7px 10px', color: open ? C.accent : C.linkDefault,
           backgroundColor: open ? C.linkActiveBg : 'transparent',
           border: `1px solid ${open ? C.borderFocus : 'transparent'}`,
         }}
@@ -335,75 +325,64 @@ const LangMenu: React.FC = () => {
         title={t('nav.language')}
       >
         <IconGlobe size={17} />
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', lineHeight: 1 }}>
-          {active.abbr}
-        </span>
-        <IconChevronDown
-          size={11}
-          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', lineHeight: 1 }}>{active.abbr}</span>
+        <IconChevronDown size={11} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
         <div
           className="absolute left-0 top-[calc(100%+10px)] z-[91] rounded-2xl overflow-hidden"
-            style={{
-              backgroundColor: C.surface,
-              border: `1px solid ${C.border}`,
-              minWidth: 176,
-              boxShadow: '0 16px 48px rgba(42,26,14,0.14), 0 4px 12px rgba(42,26,14,0.08)',
-              animation: 'dropdownIn 0.22s cubic-bezier(0.22,1,0.36,1)',
-            }}
-          >
-            <div className="px-4 py-2.5" style={{ borderBottom: `1px solid ${C.border}` }}>
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.muted, margin: 0 }}>
-                {t('nav.language')}
-              </p>
-            </div>
-            <div style={{ padding: '6px 0' }}>
-              {LANGUAGES.map((langOpt, i) => {
-                const isSelected = active.code === langOpt.code
-                return (
-                  <button
-                    key={langOpt.code}
-                    onClick={() => { setLang(langOpt.code); setOpen(false) }}
-                    className="w-full flex items-center gap-3 text-left transition-colors"
-                    style={{
-                      padding: '9px 16px',
-                      color: isSelected ? C.accent : C.body,
-                      backgroundColor: isSelected ? C.linkActiveBg : 'transparent',
-                      fontWeight: isSelected ? 600 : 400,
-                      fontSize: 13,
-                      animation: `dropdownItemIn 0.25s cubic-bezier(0.22,1,0.36,1) ${0.04 + i * 0.04}s both`,
-                      border: 'none',
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = C.linkHoverBg }}
-                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent' }}
-                  >
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 28, height: 20, borderRadius: 4, flexShrink: 0,
-                      fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
-                      backgroundColor: isSelected ? 'rgba(122,74,40,0.12)' : 'rgba(90,64,48,0.07)',
-                      color: isSelected ? C.accent : C.muted,
-                    }}>
-                      {langOpt.abbr}
-                    </span>
-                    <span style={{ fontFamily: langOpt.code === 'ar' ? 'serif' : 'inherit', flex: 1 }}>
-                      {langOpt.native}
-                    </span>
-                    {isSelected && (
-                      <span style={{ color: C.accent, marginLeft: 'auto', flexShrink: 0 }}>
-                        <IconCheck size={13} />
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+          style={{
+            backgroundColor: C.surface, border: `1px solid ${C.border}`, minWidth: 176,
+            boxShadow: '0 16px 48px rgba(42,26,14,0.14), 0 4px 12px rgba(42,26,14,0.08)',
+            animation: 'dropdownIn 0.22s cubic-bezier(0.22,1,0.36,1)',
+          }}
+        >
+          <div className="px-4 py-2.5" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.muted, margin: 0 }}>
+              {t('nav.language')}
+            </p>
           </div>
+          <div style={{ padding: '6px 0' }}>
+            {LANGUAGES.map((langOpt, i) => {
+              const isSelected = active.code === langOpt.code
+              return (
+                <button
+                  key={langOpt.code}
+                  onClick={() => { setLang(langOpt.code); setOpen(false) }}
+                  className="w-full flex items-center gap-3 text-left transition-colors"
+                  style={{
+                    padding: '9px 16px', color: isSelected ? C.accent : C.body,
+                    backgroundColor: isSelected ? C.linkActiveBg : 'transparent',
+                    fontWeight: isSelected ? 600 : 400, fontSize: 13,
+                    animation: `dropdownItemIn 0.25s cubic-bezier(0.22,1,0.36,1) ${0.04 + i * 0.04}s both`,
+                    border: 'none', cursor: 'pointer', width: '100%',
+                  }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = C.linkHoverBg }}
+                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent' }}
+                >
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 28, height: 20, borderRadius: 4, flexShrink: 0,
+                    fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
+                    backgroundColor: isSelected ? 'rgba(122,74,40,0.12)' : 'rgba(90,64,48,0.07)',
+                    color: isSelected ? C.accent : C.muted,
+                  }}>
+                    {langOpt.abbr}
+                  </span>
+                  <span style={{ fontFamily: langOpt.code === 'ar' ? 'serif' : 'inherit', flex: 1 }}>
+                    {langOpt.native}
+                  </span>
+                  {isSelected && (
+                    <span style={{ color: C.accent, marginLeft: 'auto', flexShrink: 0 }}>
+                      <IconCheck size={13} />
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -422,16 +401,11 @@ const UserMenu: React.FC = () => {
 
   useEffect(() => {
     if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
+    const handler    = (e: MouseEvent)    => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', handler)
     document.addEventListener('keydown', keyHandler)
-    return () => {
-      document.removeEventListener('mousedown', handler)
-      document.removeEventListener('keydown', keyHandler)
-    }
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', keyHandler) }
   }, [open])
 
   const handleLogout = async () => {
@@ -471,106 +445,92 @@ const UserMenu: React.FC = () => {
         <span className="hidden sm:block text-xs font-semibold max-w-[80px] truncate" style={{ color: C.heading }}>
           {user.firstName}
         </span>
-        <IconChevronDown
-          size={11}
-          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <IconChevronDown size={11} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-          <div
-            className="absolute right-0 top-[calc(100%+10px)] z-[91] rounded-2xl overflow-hidden"
-            style={{
-              backgroundColor: C.surface, border: `1px solid ${C.border}`, minWidth: 224,
-              boxShadow: '0 16px 48px rgba(42,26,14,0.14), 0 4px 12px rgba(42,26,14,0.08)',
-              animation: 'dropdownIn 0.22s cubic-bezier(0.22,1,0.36,1)',
-            }}
-          >
-            <div
-              style={{
-                padding: '14px 16px',
-                borderBottom: `1px solid ${C.border}`,
-                background: 'linear-gradient(135deg, #fdf8f2 0%, #f9f0e4 100%)',
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #d4a060 0%, #7a4a28 100%)', boxShadow: '0 2px 8px rgba(122,74,40,0.28)' }}
-                >
-                  {initial}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: C.heading, margin: '0 0 2px' }}>
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <p className="text-[11px] truncate" style={{ color: C.muted, margin: 0 }}>{user.email}</p>
-                </div>
+        <div
+          className="absolute right-0 top-[calc(100%+10px)] z-[91] rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: C.surface, border: `1px solid ${C.border}`, minWidth: 224,
+            boxShadow: '0 16px 48px rgba(42,26,14,0.14), 0 4px 12px rgba(42,26,14,0.08)',
+            animation: 'dropdownIn 0.22s cubic-bezier(0.22,1,0.36,1)',
+          }}
+        >
+          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.border}`, background: 'linear-gradient(135deg, #fdf8f2 0%, #f9f0e4 100%)' }}>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #d4a060 0%, #7a4a28 100%)', boxShadow: '0 2px 8px rgba(122,74,40,0.28)' }}
+              >
+                {initial}
               </div>
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: C.heading, margin: '0 0 2px' }}>
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-[11px] truncate" style={{ color: C.muted, margin: 0 }}>{user.email}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '2px 10px', borderRadius: 99, fontSize: 9,
+                fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+                backgroundColor: 'rgba(122,74,40,0.08)', color: C.accent,
+                border: '1px solid rgba(122,74,40,0.14)',
+              }}>
+                <svg width="8" height="8" viewBox="0 0 10 10" fill={C.accent}><polygon points="5,0 10,5 5,10 0,5" /></svg>
+                {t('nav.member')}
+              </span>
+              {user.isAdmin && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   padding: '2px 10px', borderRadius: 99, fontSize: 9,
                   fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                  backgroundColor: 'rgba(122,74,40,0.08)', color: C.accent,
-                  border: '1px solid rgba(122,74,40,0.14)',
+                  backgroundColor: 'rgba(58,96,40,0.10)', color: '#3a6028',
+                  border: '1px solid rgba(58,96,40,0.22)',
                 }}>
-                  <svg width="8" height="8" viewBox="0 0 10 10" fill={C.accent}>
-                    <polygon points="5,0 10,5 5,10 0,5" />
-                  </svg>
-                  {t('nav.member')}
+                  <IconDashboard size={9} />
+                  Admin
                 </span>
-                {user.isAdmin && (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    padding: '2px 10px', borderRadius: 99, fontSize: 9,
-                    fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                    backgroundColor: 'rgba(58,96,40,0.10)', color: '#3a6028',
-                    border: '1px solid rgba(58,96,40,0.22)',
-                  }}>
-                    <IconDashboard size={9} />
-                    Admin
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div style={{ padding: '6px 0' }}>
-              {menuItems.map((item, i) => (
-                <button
-                  key={item.label}
-                  onClick={() => { navigate(item.path); setOpen(false) }}
-                  className="w-full flex items-center gap-3 text-left transition-colors"
-                  style={{
-                    padding: '9px 16px', fontSize: 13, color: C.body,
-                    backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-                    animation: `dropdownItemIn 0.25s cubic-bezier(0.22,1,0.36,1) ${0.04 + i * 0.04}s both`,
-                  }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = C.linkHoverBg}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
-                >
-                  <span style={{ color: C.label, display: 'flex', alignItems: 'center', flexShrink: 0 }}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div style={{ borderTop: `1px solid ${C.border}`, padding: '6px 0' }}>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 text-left transition-colors"
-                style={{
-                  padding: '9px 16px', fontSize: 13, color: C.red,
-                  backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-                }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(176,64,64,0.06)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}><IconLogOut size={15} /></span>
-                {t('nav.signOut')}
-              </button>
+              )}
             </div>
           </div>
+
+          <div style={{ padding: '6px 0' }}>
+            {menuItems.map((item, i) => (
+              <button
+                key={item.label}
+                onClick={() => { navigate(item.path); setOpen(false) }}
+                className="w-full flex items-center gap-3 text-left transition-colors"
+                style={{
+                  padding: '9px 16px', fontSize: 13, color: C.body,
+                  backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
+                  animation: `dropdownItemIn 0.25s cubic-bezier(0.22,1,0.36,1) ${0.04 + i * 0.04}s both`,
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = C.linkHoverBg}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+              >
+                <span style={{ color: C.label, display: 'flex', alignItems: 'center', flexShrink: 0 }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ borderTop: `1px solid ${C.border}`, padding: '6px 0' }}>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 text-left transition-colors"
+              style={{ padding: '9px 16px', fontSize: 13, color: C.red, backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(176,64,64,0.06)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}><IconLogOut size={15} /></span>
+              {t('nav.signOut')}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -643,7 +603,7 @@ const Navbar: React.FC = () => {
               style={{ animation: mounted ? 'navLogoIn 0.6s cubic-bezier(0.22,1,0.36,1) both' : 'none', textDecoration: 'none' }}
             >
               <span style={{ fontFamily: 'Georgia, serif', fontSize: '1.45rem', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.01em', color: C.logoBg }}>
-                  {t('nav.brandName')}
+                {t('nav.brandName')}
               </span>
               <span className="text-[9px] font-semibold tracking-[0.2em] uppercase hidden sm:block" style={{ color: C.logoSub }}>
                 {t('nav.brandSub')}
@@ -784,8 +744,7 @@ const Navbar: React.FC = () => {
               dir="ltr"
               style={{
                 borderTop: `1px solid ${C.navBorder}`, paddingTop: 8, marginTop: 4,
-                opacity: mobileOpen ? 1 : 0,
-                transition: 'opacity 0.3s ease 0.18s',
+                opacity: mobileOpen ? 1 : 0, transition: 'opacity 0.3s ease 0.18s',
               }}
             >
               <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.muted, margin: '4px 16px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
