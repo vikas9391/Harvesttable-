@@ -213,6 +213,7 @@ EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     "django.core.mail.backends.smtp.EmailBackend"  # explicit default
 )
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS") == "True"
 
 # -----------------------------------------------------------------------
 # Logging — surfaces errors in Render logs

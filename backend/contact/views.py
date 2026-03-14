@@ -64,7 +64,7 @@ def _send_emails_async(msg: ContactMessage) -> None:
                 msg.pk, exc, traceback.format_exc()
             )
 
-    thread = threading.Thread(target=_send, daemon=True)
+    thread = threading.Thread(target=_send, daemon=False)
     thread.start()
     logger.info('[contact] Email thread started for message #%s', msg.pk)
 
