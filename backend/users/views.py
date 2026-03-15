@@ -118,10 +118,10 @@ def register(request: Request) -> Response:
 def user_login(request: Request) -> Response:
     """
     POST /api/users/login/
-    Body: { email, password }
+    Body: { email, password }  OR  { email: <username>, password }
+    Accepts both email address and username in the 'email' field.
     Returns: profile data + { access, refresh }
     """
-    # Brute-force guard: 10 attempts per IP per 5 minutes
     ip     = _get_client_ip(request)
     rl_key = f'login_attempts:{ip}'
     if _rate_limit(rl_key, limit=10, window=300):
@@ -134,17 +134,38 @@ def user_login(request: Request) -> Response:
     if not serializer.is_valid():
         return Response({'error': 'Invalid input.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    email: str    = str(serializer.validated_data.get('email', '')).strip().lower()
-    password: str = str(serializer.validated_data.get('password', ''))
+    identifier: str = str(serializer.validated_data.get('email', '')).strip()
+    password: str   = str(serializer.validated_data.get('password', ''))
 
-    user = authenticate(request, username=email, password=password)
+    user = None
+
+    # 1️⃣ Try email lookup (case-insensitive)
+    if '@' in identifier:
+        try:
+            matched = User.objects.get(email__iexact=identifier)
+            user = authenticate(request, username=matched.username, password=password)
+        except User.DoesNotExist:
+            pass
+    
+    # 2️⃣ Try username lookup (exact, then case-insensitive fallback)
+    if user is None:
+        user = authenticate(request, username=identifier, password=password)
+
+    if user is None:
+        # Case-insensitive username fallback
+        try:
+            matched = User.objects.get(username__iexact=identifier)
+            user = authenticate(request, username=matched.username, password=password)
+        except User.DoesNotExist:
+            pass
+
     if not user:
         return Response(
             {'error': 'Invalid email or password.'},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    cache.delete(rl_key)   # Reset brute-force counter on success
+    cache.delete(rl_key)
     tokens = _get_tokens(user)
     return Response({**ProfileSerializer(user).data, **tokens})
 

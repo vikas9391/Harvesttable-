@@ -1,17 +1,16 @@
 # contact/views.py
-from typing import Any
-import threading
+from typing import Any, cast
 import logging
 import traceback
 
 from django.db import models as db_models
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
-from typing import cast
-from rest_framework.decorators import api_view, permission_classes, authentication_classes  # add authentication_classes
 
 from .models import ContactMessage
 from .serializers import (
@@ -25,6 +24,8 @@ from .emails import send_auto_reply, send_staff_notification
 logger = logging.getLogger(__name__)
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def _get_ip(request: Request) -> str | None:
     xff = request.META.get('HTTP_X_FORWARDED_FOR')
     return xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR')
@@ -37,43 +38,42 @@ def _parse_lang(raw: Any) -> str:
     return code if code in ('en', 'fr', 'ar') else 'en'
 
 
-def _send_emails_async(msg: ContactMessage) -> None:
+def _send_emails(msg: ContactMessage) -> None:
     """
-    Fire emails in a background thread so the HTTP response is returned
-    immediately — SMTP connections can take several seconds and would
-    otherwise cause gunicorn worker timeouts.
+    Send emails synchronously.
+    Render free tier may kill background threads before completion,
+    so we send inline — SMTP typically completes in under 3 seconds.
+    Each email is wrapped independently so one failure doesn't block the other.
     """
-    def _send():
-        logger.info('[contact] Sending auto-reply to %s for message #%s', msg.email, msg.pk)
-        try:
-            send_auto_reply(msg)
-            logger.info('[contact] Auto-reply sent successfully to %s', msg.email)
-        except Exception as exc:
-            logger.error(
-                '[contact] Auto-reply FAILED for #%s to %s: %s\n%s',
-                msg.pk, msg.email, exc, traceback.format_exc()
-            )
+    # ── Auto-reply to visitor ─────────────────────────────────────────────
+    logger.info('[contact] Sending auto-reply to %s for message #%s', msg.email, msg.pk)
+    try:
+        send_auto_reply(msg)
+        logger.info('[contact] Auto-reply sent successfully to %s', msg.email)
+    except Exception as exc:
+        logger.error(
+            '[contact] Auto-reply FAILED for #%s to %s: %s\n%s',
+            msg.pk, msg.email, exc, traceback.format_exc(),
+        )
 
-        logger.info('[contact] Sending staff notification for message #%s', msg.pk)
-        try:
-            send_staff_notification(msg)
-            logger.info('[contact] Staff notification sent successfully for #%s', msg.pk)
-        except Exception as exc:
-            logger.error(
-                '[contact] Staff notification FAILED for #%s: %s\n%s',
-                msg.pk, exc, traceback.format_exc()
-            )
-
-    thread = threading.Thread(target=_send, daemon=False)
-    thread.start()
-    logger.info('[contact] Email thread started for message #%s', msg.pk)
+    # ── Staff notification ────────────────────────────────────────────────
+    logger.info('[contact] Sending staff notification for message #%s', msg.pk)
+    try:
+        send_staff_notification(msg)
+        logger.info('[contact] Staff notification sent successfully for #%s', msg.pk)
+    except Exception as exc:
+        logger.error(
+            '[contact] Staff notification FAILED for #%s: %s\n%s',
+            msg.pk, exc, traceback.format_exc(),
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/contact/submit/
 # ─────────────────────────────────────────────────────────────────────────────
+
 @api_view(['POST'])
-@authentication_classes([])   # ← skip JWT authentication entirely
+@authentication_classes([])      # skip JWT — public endpoint
 @permission_classes([AllowAny])
 def submit(request: Request) -> Response:
     ser = ContactFormSerializer(data=request.data)
@@ -84,10 +84,10 @@ def submit(request: Request) -> Response:
     lang = _parse_lang(data.get('lang'))
 
     msg = ContactMessage.objects.create(
-        name       = data['name'].strip(),
-        email      = data['email'].strip().lower(),
-        subject    = data['subject'].strip(),
-        message    = data['message'].strip(),
+        name       = str(data['name']).strip(),
+        email      = str(data['email']).strip().lower(),
+        subject    = str(data['subject']).strip(),
+        message    = str(data['message']).strip(),
         lang       = lang,
         user       = request.user if request.user.is_authenticated else None,
         ip_address = _get_ip(request),
@@ -96,8 +96,8 @@ def submit(request: Request) -> Response:
 
     logger.info('[contact] Message #%s created from %s', msg.pk, msg.email)
 
-    # Send emails in background — never block the HTTP response
-    _send_emails_async(msg)
+    # Send synchronously — reliable on Render free tier
+    _send_emails(msg)
 
     return Response(
         {
@@ -112,6 +112,7 @@ def submit(request: Request) -> Response:
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/contact/admin/messages/
 # ─────────────────────────────────────────────────────────────────────────────
+
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_list(request: Request) -> Response:
@@ -134,10 +135,14 @@ def admin_list(request: Request) -> Response:
             | db_models.Q(message__icontains=search)
         )
 
-    page      = max(int(request.query_params.get('page', 1)), 1)
-    page_size = min(int(request.query_params.get('page_size', 25)), 100)
-    start     = (page - 1) * page_size
-    total     = qs.count()
+    try:
+        page      = max(int(request.query_params.get('page', 1)), 1)
+        page_size = min(int(request.query_params.get('page_size', 25)), 100)
+    except (ValueError, TypeError):
+        page, page_size = 1, 25
+
+    start = (page - 1) * page_size
+    total = qs.count()
 
     return Response({
         'count':   total,
@@ -149,6 +154,7 @@ def admin_list(request: Request) -> Response:
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/contact/admin/messages/<pk>/
 # ─────────────────────────────────────────────────────────────────────────────
+
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_detail(request: Request, pk: int) -> Response:
@@ -161,6 +167,7 @@ def admin_detail(request: Request, pk: int) -> Response:
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/contact/admin/messages/<pk>/status/
 # ─────────────────────────────────────────────────────────────────────────────
+
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def admin_update_status(request: Request, pk: int) -> Response:
@@ -192,6 +199,7 @@ def admin_update_status(request: Request, pk: int) -> Response:
 # ─────────────────────────────────────────────────────────────────────────────
 # DELETE /api/contact/admin/messages/<pk>/
 # ─────────────────────────────────────────────────────────────────────────────
+
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser])
 def admin_delete(request: Request, pk: int) -> Response:
@@ -205,12 +213,10 @@ def admin_delete(request: Request, pk: int) -> Response:
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/contact/admin/stats/
 # ─────────────────────────────────────────────────────────────────────────────
+
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_stats(request: Request) -> Response:
-    from datetime import timedelta
-    from django.utils import timezone
-
     now      = timezone.now()
     week_ago = now - timedelta(days=7)
     total    = ContactMessage.objects.count()
