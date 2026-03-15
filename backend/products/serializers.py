@@ -12,16 +12,29 @@ class ProductReviewSerializer(serializers.ModelSerializer):
 def _resolve_image(obj, request):
     """
     Priority:
-      1. Uploaded file  → absolute URL via request
-      2. image_url_path → absolute URL built from request host
+      1. Uploaded Cloudinary file → .url is already absolute, return as-is
+      2. image_url_path → build absolute URL from request host
       3. None
     """
-    if obj.image and request:
-        return request.build_absolute_uri(obj.image.url)
-    if obj.image_url_path:
+    if obj.image:
+        url = obj.image.url
+        # Cloudinary returns full https:// URL — never wrap in build_absolute_uri
+        if url.startswith('http://') or url.startswith('https://'):
+            return url
+        # Local storage fallback — build absolute URL
         if request:
-            return request.build_absolute_uri(obj.image_url_path)
-        return obj.image_url_path
+            return request.build_absolute_uri(url)
+        return url
+
+    if obj.image_url_path:
+        path = obj.image_url_path
+        # If image_url_path is also already absolute, return as-is
+        if path.startswith('http://') or path.startswith('https://'):
+            return path
+        if request:
+            return request.build_absolute_uri(path)
+        return path
+
     return None
 
 

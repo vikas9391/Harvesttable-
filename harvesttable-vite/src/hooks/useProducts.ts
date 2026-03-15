@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '../lib/api'          // ← add this import
 import { PRODUCTS } from '../data/products'
 import type { Product } from '../types'
 
-// ── API base URL from environment ─────────────────────────────────────────────
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com'
 
-// Re-export Product as ApiProduct so imports in pages stay consistent
 export type ApiProduct = Product
 
-// ─── Query builder ────────────────────────────────────────────────────────────
 interface UseProductsOptions {
   category?:       string
   search?:         string
@@ -36,7 +34,6 @@ function buildQuery(opts: UseProductsOptions): string {
   return q ? `?${q}` : ''
 }
 
-// ─── Static fallback filter (mirrors server-side logic) ───────────────────────
 function filterStatic(opts: UseProductsOptions): Product[] {
   let list = [...PRODUCTS]
   if (opts.category)       list = list.filter(p => p.category === opts.category)
@@ -62,7 +59,6 @@ function filterStatic(opts: UseProductsOptions): Product[] {
   return list
 }
 
-// ─── Main hook ────────────────────────────────────────────────────────────────
 export interface ProductsState {
   products: ApiProduct[]
   loading:  boolean
@@ -77,7 +73,6 @@ export function useProducts(opts: UseProductsOptions = {}): ProductsState {
   const [tick,     setTick]     = useState(0)
 
   const refetch = useCallback(() => setTick(t => t + 1), [])
-
   const queryKey = buildQuery(opts) + tick
 
   useEffect(() => {
@@ -85,7 +80,8 @@ export function useProducts(opts: UseProductsOptions = {}): ProductsState {
     setLoading(true)
     setError(null)
 
-    fetch(`${API_BASE_URL}/api/products/${buildQuery(opts)}`, { credentials: 'include' })
+    // ✅ use apiFetch so JWT token is included
+    apiFetch(`/api/products/${buildQuery(opts)}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -109,7 +105,6 @@ export function useProducts(opts: UseProductsOptions = {}): ProductsState {
   return { products, loading, error, refetch }
 }
 
-// ─── Single product by slug ───────────────────────────────────────────────────
 export function useProduct(slug: string | undefined) {
   const [product, setProduct] = useState<ApiProduct | null>(null)
   const [loading, setLoading] = useState(true)
@@ -120,7 +115,8 @@ export function useProduct(slug: string | undefined) {
     let cancelled = false
     setLoading(true); setError(null)
 
-    fetch(`${API_BASE_URL}/api/products/${slug}/`, { credentials: 'include' })
+    // ✅ use apiFetch so JWT token is included
+    apiFetch(`/api/products/${slug}/`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((data: ApiProduct) => { if (!cancelled) setProduct(data) })
       .catch(() => {
@@ -138,7 +134,6 @@ export function useProduct(slug: string | undefined) {
   return { product, loading, error }
 }
 
-// ─── Featured products (/api/products/featured/) ─────────────────────────────
 export function useFeaturedProducts() {
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -146,7 +141,8 @@ export function useFeaturedProducts() {
   useEffect(() => {
     let cancelled = false
 
-    fetch(`${API_BASE_URL}/api/products/featured/`, { credentials: 'include' })
+    // ✅ use apiFetch
+    apiFetch(`/api/products/featured/`)
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
         if (!cancelled)
@@ -164,7 +160,6 @@ export function useFeaturedProducts() {
   return { products, loading }
 }
 
-// ─── Seasonal products (/api/products/seasonal/) ─────────────────────────────
 export function useSeasonalProducts() {
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -172,7 +167,8 @@ export function useSeasonalProducts() {
   useEffect(() => {
     let cancelled = false
 
-    fetch(`${API_BASE_URL}/api/products/seasonal/`, { credentials: 'include' })
+    // ✅ use apiFetch
+    apiFetch(`/api/products/seasonal/`)
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then((data: ApiProduct[] | { results: ApiProduct[] }) => {
         if (!cancelled)
