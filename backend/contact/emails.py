@@ -1,6 +1,6 @@
 # contact/emails.py
 from django.conf import settings
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage, get_connection
 from django.utils import timezone
 
 from .models import ContactMessage
@@ -63,13 +63,14 @@ AUTO_REPLY: dict[str, dict[str, str]] = {
 
 def _get_connection():
     """
-    Build an SMTP connection with an explicit timeout.
-    Django's default has no timeout — it hangs forever on bad SMTP hosts.
+    Explicit SMTP connection with timeout and SSL for port 465.
+    use_ssl and use_tls are mutually exclusive — never set both to True.
     """
-    from django.core.mail import get_connection
     return get_connection(
         backend  = 'django.core.mail.backends.smtp.EmailBackend',
-        timeout  = 15,   # ← 15 second hard timeout on connect + each command
+        timeout  = 15,
+        use_ssl  = True,   # port 465
+        use_tls  = False,  # must be False when use_ssl=True
     )
 
 
@@ -84,14 +85,13 @@ def send_auto_reply(msg: ContactMessage) -> None:
         message = msg.message,
     )
 
-    connection = _get_connection()
     EmailMessage(
         subject    = template['subject'],
         body       = body,
         from_email = FROM_EMAIL,
         to         = [msg.email],
-        connection = connection,
-    ).send(fail_silently=False)   # fail_silently=False so errors surface in logs
+        connection = _get_connection(),
+    ).send(fail_silently=False)
 
 
 def send_staff_notification(msg: ContactMessage) -> None:
@@ -118,12 +118,11 @@ def send_staff_notification(msg: ContactMessage) -> None:
         f"Admin panel      : https://harvesttable.com/admin/contact/contactmessage/{msg.pk}/change/\n"
     )
 
-    connection = _get_connection()
     EmailMessage(
         subject    = f'[{BRAND} Contact] #{msg.pk} — {msg.subject[:80]}',
         body       = body,
         from_email = FROM_EMAIL,
         to         = [STAFF_EMAIL],
         reply_to   = [msg.email],
-        connection = connection,
+        connection = _get_connection(),
     ).send(fail_silently=False)
