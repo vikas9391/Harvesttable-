@@ -99,7 +99,7 @@ def send_auto_reply(msg: ContactMessage) -> None:
             body       = body,
             from_email = FROM_EMAIL,
             to         = [msg.email],
-        ).send(fail_silently=False)
+        ).send(fail_silently=True)
     except Exception as exc:   # noqa: BLE001
         import logging
         logging.getLogger('contact').warning('Auto-reply failed for %s: %s', msg.email, exc)
@@ -133,7 +133,7 @@ def send_staff_notification(msg: ContactMessage) -> None:
             from_email = FROM_EMAIL,
             to         = [STAFF_EMAIL],
             reply_to   = [msg.email], 
-        ).send(fail_silently=False)
+        ).send(fail_silently=True)
     except Exception as exc:   # noqa: BLE001
         import logging
         logging.getLogger('contact').warning('Staff notification failed for #%s: %s', msg.pk, exc)

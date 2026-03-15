@@ -2,6 +2,7 @@
 from typing import Any, cast
 import logging
 import traceback
+import threading
 
 from django.db import models as db_models
 from django.utils import timezone
@@ -38,33 +39,39 @@ def _parse_lang(raw: Any) -> str:
     return code if code in ('en', 'fr', 'ar') else 'en'
 
 
-def _send_emails(msg: ContactMessage) -> None:
+def _send_emails(msg_pk: int, email: str, name: str, subject: str, message: str, lang: str) -> None:
     """
-    Send emails synchronously.
-    Render free tier may kill background threads before completion,
-    so we send inline — SMTP typically completes in under 3 seconds.
-    Each email is wrapped independently so one failure doesn't block the other.
+    Send both emails in a background thread.
+    We pass primitive values (not the ORM object) to avoid Django's
+    database connection issues across threads.
     """
-    # ── Auto-reply to visitor ─────────────────────────────────────────────
-    logger.info('[contact] Sending auto-reply to %s for message #%s', msg.email, msg.pk)
+    # Re-fetch the message inside the thread to get a fresh DB connection
+    try:
+        msg = ContactMessage.objects.get(pk=msg_pk)
+    except ContactMessage.DoesNotExist:
+        logger.error('[contact] Message #%s not found in email thread', msg_pk)
+        return
+
+    # ── Auto-reply ────────────────────────────────────────────────────────
+    logger.info('[contact] Sending auto-reply to %s for message #%s', email, msg_pk)
     try:
         send_auto_reply(msg)
-        logger.info('[contact] Auto-reply sent successfully to %s', msg.email)
+        logger.info('[contact] Auto-reply sent to %s', email)
     except Exception as exc:
         logger.error(
-            '[contact] Auto-reply FAILED for #%s to %s: %s\n%s',
-            msg.pk, msg.email, exc, traceback.format_exc(),
+            '[contact] Auto-reply FAILED for #%s: %s\n%s',
+            msg_pk, exc, traceback.format_exc(),
         )
 
     # ── Staff notification ────────────────────────────────────────────────
-    logger.info('[contact] Sending staff notification for message #%s', msg.pk)
+    logger.info('[contact] Sending staff notification for #%s', msg_pk)
     try:
         send_staff_notification(msg)
-        logger.info('[contact] Staff notification sent successfully for #%s', msg.pk)
+        logger.info('[contact] Staff notification sent for #%s', msg_pk)
     except Exception as exc:
         logger.error(
             '[contact] Staff notification FAILED for #%s: %s\n%s',
-            msg.pk, exc, traceback.format_exc(),
+            msg_pk, exc, traceback.format_exc(),
         )
 
 
@@ -73,7 +80,7 @@ def _send_emails(msg: ContactMessage) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @api_view(['POST'])
-@authentication_classes([])      # skip JWT — public endpoint
+@authentication_classes([])
 @permission_classes([AllowAny])
 def submit(request: Request) -> Response:
     ser = ContactFormSerializer(data=request.data)
@@ -96,9 +103,17 @@ def submit(request: Request) -> Response:
 
     logger.info('[contact] Message #%s created from %s', msg.pk, msg.email)
 
-    # Send synchronously — reliable on Render free tier
-    _send_emails(msg)
+    # ── Fire email thread and return 201 immediately ──────────────────────
+    # Pass msg.pk (int) not the ORM object — avoids cross-thread DB issues
+    thread = threading.Thread(
+        target  = _send_emails,
+        args    = (msg.pk, msg.email, msg.name, msg.subject, msg.message, msg.lang),
+        daemon  = True,   # daemon=True so it doesn't block gunicorn shutdown
+    )
+    thread.start()
+    logger.info('[contact] Email thread started for #%s', msg.pk)
 
+    # Return immediately — do NOT join/wait for the thread
     return Response(
         {
             'success':    True,
@@ -219,10 +234,9 @@ def admin_delete(request: Request, pk: int) -> Response:
 def admin_stats(request: Request) -> Response:
     now      = timezone.now()
     week_ago = now - timedelta(days=7)
-    total    = ContactMessage.objects.count()
 
     return Response({
-        'total':       total,
+        'total':       ContactMessage.objects.count(),
         'new':         ContactMessage.objects.filter(status='new').count(),
         'in_progress': ContactMessage.objects.filter(status='in_progress').count(),
         'resolved':    ContactMessage.objects.filter(status='resolved').count(),
