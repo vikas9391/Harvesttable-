@@ -94,7 +94,14 @@ def _send_via_brevo(
     api_key:    str,
     reply_to:   str | None = None,
 ) -> None:
+    import re
     import sib_api_v3_sdk
+
+    # Extract raw email if it comes as "Name <email@domain.com>"
+    match = re.search(r'<(.+?)>', from_email)
+    clean_from_email = match.group(1).strip() if match else from_email.strip()
+
+    logger.info('[contact] sending from=%r to=%r', clean_from_email, to_email)
 
     configuration = sib_api_v3_sdk.Configuration()
     configuration.api_key['api-key'] = api_key
@@ -104,7 +111,7 @@ def _send_via_brevo(
     )
 
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-        sender       = {'name': BRAND, 'email': from_email},
+        sender       = {'name': BRAND, 'email': clean_from_email},
         to           = [{'email': to_email, 'name': to_name}],
         reply_to     = {'email': reply_to} if reply_to else None,
         subject      = subject,
@@ -112,7 +119,7 @@ def _send_via_brevo(
     )
 
     api_instance.send_transac_email(send_smtp_email)
-
+    
 
 def send_auto_reply(msg: ContactMessage) -> None:
     api_key, from_email, _ = _get_config()
