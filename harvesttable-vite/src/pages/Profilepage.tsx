@@ -524,9 +524,18 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (state.ordersLoaded) return
     apiFetch('/api/orders/my/')
-      .then(r => r.ok ? r.json() : [])
-      .then(data => dispatch({ type: 'SET_ORDERS', payload: Array.isArray(data) ? data : data.results ?? [] }))
-      .catch(() => dispatch({ type: 'SET_ORDERS', payload: [] }))
+  .then(r => {
+    console.log('orders status:', r.status)
+    return r.ok ? r.json() : []
+  })
+  .then(data => {
+    console.log('orders data:', data)
+    dispatch({ type: 'SET_ORDERS', payload: Array.isArray(data) ? data : (data.results ?? []) })
+  })
+  .catch(e => {
+    console.error('orders error:', e)
+    dispatch({ type: 'SET_ORDERS', payload: [] })
+  })
   }, [state.ordersLoaded])
 
   // Auto-clear success toasts
@@ -632,7 +641,7 @@ const ProfilePage: React.FC = () => {
   if (!state.profile || !state.editForm) return null
 
   const { profile, editForm } = state
-  const initials     = `${profile.firstName?.[0] ?? ''}${profile.lastName?.[0] ?? ''}`.toUpperCase()
+  const initials = (profile.firstName?.[0] ?? profile.email?.[0] ?? '?').toUpperCase()
   const totalSpent   = state.orders.reduce((s, o) => s + parseFloat(o.total || '0'), 0)
 
   const fade = (d: number): React.CSSProperties => ({

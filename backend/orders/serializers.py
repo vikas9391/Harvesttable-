@@ -13,13 +13,24 @@ from .models import (
 def _build_product_dict(p, request=None):
     """Return a plain dict representation of a Product for cart/order responses."""
     image_url = None
-    if getattr(p, 'image', None) and request:
-        image_url = request.build_absolute_uri(p.image.url)
+
+    if getattr(p, 'image', None):
+        url = p.image.url
+        # Cloudinary returns full https:// — never wrap in build_absolute_uri
+        if url.startswith('http://') or url.startswith('https://'):
+            image_url = url
+        elif request:
+            image_url = request.build_absolute_uri(url)
+        else:
+            image_url = url
     elif getattr(p, 'image_url_path', None):
-        image_url = (
-            request.build_absolute_uri(p.image_url_path)
-            if request else p.image_url_path
-        )
+        path = p.image_url_path
+        if path.startswith('http://') or path.startswith('https://'):
+            image_url = path
+        elif request:
+            image_url = request.build_absolute_uri(path)
+        else:
+            image_url = path
 
     return {
         'id':             p.id,
@@ -116,7 +127,6 @@ class OrderSerializer(serializers.ModelSerializer):
         items_data      = validated_data.pop('items', [])
         gift_boxes_data = validated_data.pop('gift_boxes_payload', [])
 
-        # ── Subtotal: regular items + gift box totals ──────────────────────
         items_subtotal = sum(
             item['product'].price * item['quantity']
             for item in items_data
@@ -135,7 +145,6 @@ class OrderSerializer(serializers.ModelSerializer):
             total=subtotal + shipping,
         )
 
-        # ── Regular order items ────────────────────────────────────────────
         for item_data in items_data:
             product = item_data['product']
             OrderItem.objects.create(
@@ -147,7 +156,6 @@ class OrderSerializer(serializers.ModelSerializer):
                 subtotal=product.price * item_data['quantity'],
             )
 
-        # ── Gift box snapshots ─────────────────────────────────────────────
         for gb in gift_boxes_data:
             gift_box = OrderGiftBox.objects.create(
                 order=order,
@@ -220,19 +228,11 @@ class CartSerializer(serializers.ModelSerializer):
         fields = ['id', 'items', 'gift_boxes', 'updated_at']
 
     def get_items(self, obj):
-        """
-        Return only regular cart items whose product is NOT already inside
-        a gift box in this cart. This prevents a product from appearing both
-        as a standalone row and inside a bundle when the user only added it
-        via the Gift Builder.
-        """
-        # Collect every product_id that lives inside any gift box in this cart
         gift_box_product_ids: set = set()
         for gb in obj.gift_boxes.prefetch_related('gift_items'):  # type: ignore[attr-defined]
             for gi in gb.gift_items.all():  # type: ignore[attr-defined]
                 gift_box_product_ids.add(gi.product_id)  # type: ignore[attr-defined]
 
-        # Only return items whose product is NOT already in a gift box
         regular_items = [
             item for item in obj.items.select_related('product')  # type: ignore[attr-defined]
             if item.product_id not in gift_box_product_ids  # type: ignore[attr-defined]
