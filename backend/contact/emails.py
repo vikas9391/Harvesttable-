@@ -1,13 +1,14 @@
 # contact/emails.py
+import logging
 from django.conf import settings
-from django.core.mail import EmailMessage, get_connection
 from django.utils import timezone
-
 from .models import ContactMessage
 
-BRAND       = getattr(settings, 'BRAND_NAME', 'HarvestTable')
-STAFF_EMAIL = getattr(settings, 'CONTACT_STAFF_EMAIL', settings.DEFAULT_FROM_EMAIL)
+logger   = logging.getLogger('contact')
+BRAND    = getattr(settings, 'BRAND_NAME', 'HarvestTable')
+STAFF_EMAIL = getattr(settings, 'CONTACT_STAFF_EMAIL', 'support@harvesttable.com')
 FROM_EMAIL  = settings.DEFAULT_FROM_EMAIL
+FROM_NAME   = BRAND
 
 AUTO_REPLY: dict[str, dict[str, str]] = {
     'en': {
@@ -61,17 +62,31 @@ AUTO_REPLY: dict[str, dict[str, str]] = {
 }
 
 
-def _get_connection():
-    """
-    Explicit SMTP connection with timeout and SSL for port 465.
-    use_ssl and use_tls are mutually exclusive — never set both to True.
-    """
-    return get_connection(
-        backend  = 'django.core.mail.backends.smtp.EmailBackend',
-        timeout  = 15,
-        use_ssl  = True,   # port 465
-        use_tls  = False,  # must be False when use_ssl=True
+def _send_via_brevo(to_email: str, to_name: str, subject: str, body: str, reply_to: str | None = None) -> None:
+    """Send email via Brevo HTTP API — works on Render free tier."""
+    import sib_api_v3_sdk
+    from sib_api_v3_sdk.rest import ApiException
+
+    api_key = getattr(settings, 'BREVO_API_KEY', None) or __import__('os').getenv('BREVO_API_KEY')
+    if not api_key:
+        raise ValueError('BREVO_API_KEY is not set')
+
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = api_key
+
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+        sib_api_v3_sdk.ApiClient(configuration)
     )
+
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        sender      = {'name': FROM_NAME, 'email': FROM_EMAIL},
+        to          = [{'email': to_email, 'name': to_name}],
+        reply_to    = {'email': reply_to} if reply_to else None,
+        subject     = subject,
+        text_content = body,
+    )
+
+    api_instance.send_transac_email(send_smtp_email)
 
 
 def send_auto_reply(msg: ContactMessage) -> None:
@@ -85,13 +100,12 @@ def send_auto_reply(msg: ContactMessage) -> None:
         message = msg.message,
     )
 
-    EmailMessage(
-        subject    = template['subject'],
-        body       = body,
-        from_email = FROM_EMAIL,
-        to         = [msg.email],
-        connection = _get_connection(),
-    ).send(fail_silently=False)
+    _send_via_brevo(
+        to_email = msg.email,
+        to_name  = msg.name,
+        subject  = template['subject'],
+        body     = body,
+    )
 
 
 def send_staff_notification(msg: ContactMessage) -> None:
@@ -115,14 +129,13 @@ def send_staff_notification(msg: ContactMessage) -> None:
         f"{msg.message}\n"
         f"──────────────────────────\n\n"
         f"Reply directly to: {msg.email}\n"
-        f"Admin panel      : https://harvesttable.com/admin/contact/contactmessage/{msg.pk}/change/\n"
+        f"Admin panel: https://harvesttable.com/admin/contact/contactmessage/{msg.pk}/change/\n"
     )
 
-    EmailMessage(
-        subject    = f'[{BRAND} Contact] #{msg.pk} — {msg.subject[:80]}',
-        body       = body,
-        from_email = FROM_EMAIL,
-        to         = [STAFF_EMAIL],
-        reply_to   = [msg.email],
-        connection = _get_connection(),
-    ).send(fail_silently=False)
+    _send_via_brevo(
+        to_email = STAFF_EMAIL,
+        to_name  = f'{BRAND} Support',
+        subject  = f'[{BRAND} Contact] #{msg.pk} — {msg.subject[:80]}',
+        body     = body,
+        reply_to = msg.email,
+    )

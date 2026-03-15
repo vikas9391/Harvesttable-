@@ -84,18 +84,20 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'harvesttable.urls'
 
 # -----------------------------------------------------------------------
-# Email
+# Email — Brevo HTTP API (SMTP is blocked on Render free tier)
 # -----------------------------------------------------------------------
-EMAIL_BACKEND       = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-EMAIL_HOST          = os.getenv("EMAIL_HOST")
-EMAIL_PORT          = int(os.getenv("EMAIL_PORT", 465))
-EMAIL_USE_TLS       = os.getenv("EMAIL_USE_TLS", "False") == "True"
-EMAIL_USE_SSL       = os.getenv("EMAIL_USE_SSL", "True") == "True"   # port 465 uses SSL
-EMAIL_HOST_USER     = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL  = os.getenv("DEFAULT_FROM_EMAIL")
+# Legacy SMTP settings kept as no-ops so Django doesn't complain.
+# Actual sending is done via Brevo API in contact/emails.py
+EMAIL_BACKEND   = 'django.core.mail.backends.dummy.EmailBackend'
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "support@harvesttable.com")
 
-CONTACT_STAFF_EMAIL = 'support@harvesttable.com'
+# Brevo API key — set this in Render environment variables
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+
+# -----------------------------------------------------------------------
+# Contact / Brand
+# -----------------------------------------------------------------------
+CONTACT_STAFF_EMAIL = os.getenv("CONTACT_STAFF_EMAIL", "support@harvesttable.com")
 BRAND_NAME          = 'HarvestTable'
 FRONTEND_URL        = os.getenv("FRONTEND_URL", "https://harvesttable.onrender.com")
 
@@ -183,8 +185,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 # -----------------------------------------------------------------------
 # Django REST Framework — JWT only, no SessionAuthentication
-# SessionAuthentication enforces CSRF on ALL requests including AllowAny
-# endpoints, breaking cross-origin POST requests without a CSRF cookie.
 # -----------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -213,10 +213,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES':        ('Bearer',),
     'AUTH_TOKEN_CLASSES':       ('rest_framework_simplejwt.tokens.AccessToken',),
 }
-EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.smtp.EmailBackend"  # explicit default
-)
 
 # -----------------------------------------------------------------------
 # Logging — surfaces errors in Render logs
