@@ -114,13 +114,25 @@ async function refreshAccessToken(): Promise<string | null> {
 // ── Build request headers ─────────────────────────────────────────────────────
 function buildHeaders(
   token: string | null,
+  body?: BodyInit | null,
   extra?: HeadersInit,
 ): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(extra as Record<string, string> | undefined ?? {}),
+  const headers: Record<string, string> = {}
+
+  // Only set JSON Content-Type when body is NOT FormData.
+  // For FormData the browser sets Content-Type with the correct
+  // multipart boundary automatically — never override it manually.
+  if (!(body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
   }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  // Merge any caller-supplied headers last so they can override if needed
+  const extra_ = (extra as Record<string, string> | undefined) ?? {}
+  return { ...headers, ...extra_ }
 }
 
 // ── seedCSRF — kept as a no-op so App.tsx doesn't need changes ────────────────
@@ -136,6 +148,7 @@ export async function seedCSRF(): Promise<void> {
  *  - Silently refreshes the access token on 401 and retries once
  *  - Deduplicates concurrent identical GET requests
  *  - Caches GET responses for 30 s (pass { cache: 'no-store' } to bypass)
+ *  - Correctly handles FormData (does NOT set Content-Type for multipart)
  */
 export async function apiFetch(
   pathOrUrl: string,
@@ -146,7 +159,7 @@ export async function apiFetch(
   const bypassCache = options.cache === 'no-store'
   const token       = getAccessToken()
 
-  // ── GET fast-path: cache → dedup → fetch ───────────────────────────────
+  // ── GET fast-path: cache → dedup → fetch ─────────────────────────────────
   if (method === 'GET' && !bypassCache) {
 
     // 1. Return cached response if still fresh
@@ -165,7 +178,7 @@ export async function apiFetch(
     // 3. Real network request
     const promise = fetch(url, {
       ...options,
-      headers: buildHeaders(token, options.headers),
+      headers: buildHeaders(token, options.body, options.headers),
     })
       .then(async res => {
         inFlight.delete(url)
@@ -176,7 +189,7 @@ export async function apiFetch(
           if (newToken) {
             return fetch(url, {
               ...options,
-              headers: buildHeaders(newToken, options.headers),
+              headers: buildHeaders(newToken, options.body, options.headers),
             })
           }
         }
@@ -186,7 +199,7 @@ export async function apiFetch(
             const data = await res.clone().json()
             responseCache.set(url, { data, ts: Date.now() })
           } catch {
-            // Non-JSON — skip caching
+            // Non-JSON response — skip caching
           }
         }
 
@@ -201,10 +214,10 @@ export async function apiFetch(
     return promise
   }
 
-  // ── Non-GET (POST / PATCH / DELETE) ──────────────────────────────────────
+  // ── Non-GET (POST / PATCH / DELETE / PUT) ─────────────────────────────────
   const res = await fetch(url, {
     ...options,
-    headers: buildHeaders(token, options.headers),
+    headers: buildHeaders(token, options.body, options.headers),
   })
 
   // Silent refresh on 401
@@ -213,7 +226,7 @@ export async function apiFetch(
     if (newToken) {
       return fetch(url, {
         ...options,
-        headers: buildHeaders(newToken, options.headers),
+        headers: buildHeaders(newToken, options.body, options.headers),
       })
     }
   }

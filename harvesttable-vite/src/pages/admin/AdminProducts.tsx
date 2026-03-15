@@ -430,62 +430,61 @@ const AdminProducts: React.FC = () => {
     setShowAdd(true);
   };
 
-  const submitAdd = async () => {
-    const ml = multiLangRef.current;
-    if (!ml.name_en.trim()) { setError('English product name is required.'); return; }
-    if (!addForm.price)     { setError('Price is required.'); return; }
+const submitAdd = async () => {
+  const ml = multiLangRef.current;
+  if (!ml.name_en.trim()) { setError('English product name is required.'); return; }
+  if (!addForm.price)     { setError('Price is required.'); return; }
 
-    setAddSaving(true); setError('');
-    try {
-      const fd = new FormData();
-      fd.append('name',           ml.name_en.trim());
-      fd.append('description',    ml.desc_en.trim() || ml.name_en.trim());
-      fd.append('name_fr',        ml.name_fr);
-      fd.append('name_ar',        ml.name_ar);
-      fd.append('description_fr', ml.desc_fr);
-      fd.append('description_ar', ml.desc_ar);
-      // ── all 3 badge languages ─────────────────────────────────────────
-      fd.append('badge',          ml.badge_en);
-      fd.append('badge_fr',       ml.badge_fr);
-      fd.append('badge_ar',       ml.badge_ar);
-      // ─────────────────────────────────────────────────────────────────
-      fd.append('price',          String(addForm.price));
-      fd.append('category',       addForm.category);
-      fd.append('origin',         addForm.origin);
-      fd.append('stock_quantity', String(addForm.stock_quantity));
-      fd.append('in_stock',       String(addForm.in_stock));
-      fd.append('is_organic',     String(addForm.is_organic));
-      fd.append('is_vegan',       String(addForm.is_vegan));
-      fd.append('is_gluten_free', String(addForm.is_gluten_free));
-      fd.append('is_fair_trade',  String(addForm.is_fair_trade));
-      fd.append('is_featured',    String(addForm.is_featured));
-      fd.append('is_seasonal',    String(addForm.is_seasonal));
-      if (addImage)         fd.append('image',          addImage);
-      else if (addImageUrl) fd.append('image_url_path', addImageUrl);
+  setAddSaving(true); setError('');
+  try {
+    const fd = new FormData();
+    fd.append('name',           ml.name_en.trim());
+    fd.append('description',    ml.desc_en.trim() || ml.name_en.trim());
+    fd.append('name_fr',        ml.name_fr);
+    fd.append('name_ar',        ml.name_ar);
+    fd.append('description_fr', ml.desc_fr);
+    fd.append('description_ar', ml.desc_ar);
+    fd.append('badge',          ml.badge_en);
+    fd.append('badge_fr',       ml.badge_fr);
+    fd.append('badge_ar',       ml.badge_ar);
+    fd.append('price',          String(addForm.price));
+    fd.append('category',       addForm.category);
+    fd.append('origin',         addForm.origin);
+    fd.append('stock_quantity', String(addForm.stock_quantity));
+    fd.append('in_stock',       String(addForm.in_stock));
+    fd.append('is_organic',     String(addForm.is_organic));
+    fd.append('is_vegan',       String(addForm.is_vegan));
+    fd.append('is_gluten_free', String(addForm.is_gluten_free));
+    fd.append('is_fair_trade',  String(addForm.is_fair_trade));
+    fd.append('is_featured',    String(addForm.is_featured));
+    fd.append('is_seasonal',    String(addForm.is_seasonal));
+    if (addImage)         fd.append('image',          addImage);
+    else if (addImageUrl) fd.append('image_url_path', addImageUrl);
 
-      const csrfRes   = await apiFetch('/api/users/csrf/');
-      const csrfData  = await csrfRes.json().catch(() => ({}));
-      const csrfToken: string = csrfData.csrfToken ?? csrfData.csrf_token ?? '';
+    // ✅ Use apiFetch — it adds the Authorization: Bearer header automatically
+    // Do NOT set Content-Type — browser sets it with boundary for FormData
+    const res = await apiFetch('/api/products/', {
+      method: 'POST',
+      body: fd,
+    });
 
-      const res = await fetch('/api/products/', {
-        method: 'POST', credentials: 'include',
-        headers: { ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}) },
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const msg = Object.entries(err).map(([f, e]) => `${f}: ${(e as string[]).join(' ')}`).join(' | ');
-        setError(msg || 'Failed to add product.');
-        return;
-      }
-      await fetchProducts();
-      setShowAdd(false);
-    } catch (e: any) {
-      setError(e.message || 'Network error.');
-    } finally {
-      setAddSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = Object.entries(err)
+        .map(([f, e]) => `${f}: ${(e as string[]).join(' ')}`)
+        .join(' | ');
+      setError(msg || 'Failed to add product.');
+      return;
     }
-  };
+
+    await fetchProducts();
+    setShowAdd(false);
+  } catch (e: any) {
+    setError(e.message || 'Network error.');
+  } finally {
+    setAddSaving(false);
+  }
+};
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
