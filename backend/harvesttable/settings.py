@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 import dj_database_url
 import cloudinary
+import django.db.backends.postgresql
+
 
 load_dotenv()
 
@@ -124,7 +126,7 @@ DATABASES = {
         default=os.getenv("DATABASE_URL"),
         conn_max_age=600,
         ssl_require=True,
-        engine='django.db.backends.postgresql',
+        engine='django.db.backends.postgresql',  # psycopg3 is auto-detected
     )
 }
 
