@@ -1,5 +1,6 @@
 # users/urls.py
 from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView  
 
 from .views import (
     admin_customer_list,
@@ -18,20 +19,21 @@ app_name = 'users'
 
 urlpatterns = [
     # Auth
-    path('csrf/',               csrf_token,           name='csrf-token'),
-    path('register/',           register,             name='register'),
-    path('login/',              user_login,           name='login'),
-    path('logout/',             user_logout,          name='logout'),
+    path('csrf/',               csrf_token,                  name='csrf-token'),
+    path('register/',           register,                    name='register'),
+    path('login/',              user_login,                  name='login'),
+    path('logout/',             user_logout,                 name='logout'),
+    path('refresh/',            TokenRefreshView.as_view(),  name='token-refresh'),  # ← add this
 
     # Profile  (GET / PATCH / DELETE)
-    path('me/',                 me,                   name='me'),
-    path('change-password/',    change_password,      name='change-password'),
-    path('notifications/',      notifications,        name='notifications'),
+    path('me/',                 me,                          name='me'),
+    path('change-password/',    change_password,             name='change-password'),
+    path('notifications/',      notifications,               name='notifications'),
 
     # Password reset
-    path('forgot-password/',    forgot_password,      name='forgot-password'),
-    path('reset-password/',     reset_password,       name='reset-password'),
+    path('forgot-password/',    forgot_password,             name='forgot-password'),
+    path('reset-password/',     reset_password,              name='reset-password'),
 
     # Admin
-    path('admin/customers/',    admin_customer_list,  name='admin-customers'),
+    path('admin/customers/',    admin_customer_list,         name='admin-customers'),
 ]
