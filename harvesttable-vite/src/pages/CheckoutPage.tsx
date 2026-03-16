@@ -5,6 +5,7 @@ import { useCart, CartGiftBox, GuestGiftBox } from '../context/CartContext';
 import { useLanguage } from '../context/Languagecontext';
 import { Product } from '../types';
 import ProductImage from '../components/ProductImage';
+import { apiFetch } from '../lib/api';
 
 // ── API base URL from environment ─────────────────────────────────────────────
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com';
@@ -340,10 +341,9 @@ const CheckoutPage: React.FC = () => {
 
     try {
       // ── Uses VITE_API_BASE_URL env variable ───────────────────────────
-      const res = await fetch(`${API_BASE_URL}/api/orders/`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify(payload),
+      const res = await apiFetch('/api/orders/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
