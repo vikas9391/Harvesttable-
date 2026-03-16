@@ -233,6 +233,7 @@ const CheckoutPage: React.FC = () => {
   const {
     items, totalPrice, clearCart,
     giftBoxes, guestGiftBoxes,
+    shippingCost, isFreeShipping,
   } = useCart();
   const { t, lang, isRTL } = useLanguage();
 
@@ -261,9 +262,24 @@ const CheckoutPage: React.FC = () => {
   const hasAnyItems = items.length > 0 || allServerGiftBoxes.length > 0 || allGuestGiftBoxes.length > 0;
 
   // ── Totals (mirrors CartContext logic) ────────────────────────────────────
-  const shippingFree = totalPrice >= 50;
-  const shippingCost = shippingFree ? 0 : 5.99;
-  const grandTotal   = totalPrice + shippingCost;
+// Compute true subtotal from all sources so the displayed total matches the backend
+  const regularItemsTotal = items.reduce(
+    (sum, i) => sum + parseFloat(i.product.price) * i.quantity,
+    0
+  )
+  const serverGiftBoxTotal = allServerGiftBoxes.reduce(
+    (sum, gb) => sum + parseFloat(gb.total_price),   // total_price already = (items_price + packaging_fee) * quantity
+    0
+  )
+  const guestGiftBoxTotal = allGuestGiftBoxes.reduce(
+    (sum, gb) =>
+      sum +
+      (gb.products.reduce((s, p) => s + parseFloat(p.price), 0) + gb.packaging_fee) *
+        gb.quantity,
+    0
+  )
+  const grandTotal = totalPrice + shippingCost;
+
 
   const handleContinueToReview = () => {
     const errors = validateStep1(form);
@@ -751,8 +767,8 @@ const CheckoutPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.muted, marginBottom: 8 }}>
                   <span>{t('checkout.shipping')}</span>
-                  <span style={{ color: shippingFree ? C.success : C.muted }}>
-                    {shippingFree ? t('checkout.shippingFree') : `$${shippingCost.toFixed(2)}`}
+                  <span style={{ color: isFreeShipping ? C.success : C.muted }}>
+                    {isFreeShipping ? t('checkout.shippingFree') : `$${shippingCost.toFixed(2)}`}
                   </span>
                 </div>
                 {step === 3 && (

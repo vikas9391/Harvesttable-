@@ -94,6 +94,7 @@ type Action =
   | { type: 'SET_PROFILE';       payload: Profile }
   | { type: 'SET_EDIT_FORM';     payload: Partial<Profile> }
   | { type: 'SET_ORDERS';        payload: Order[] }
+  | { type: 'RESET_ORDERS' }                              
   | { type: 'SET_EDIT_MODE';     payload: boolean }
   | { type: 'PAGE_LOADED' }
   | { type: 'SAVE_START' }
@@ -136,6 +137,7 @@ function reducer(state: State, action: Action): State {
     case 'NOTIF_SAVED':   return { ...state, notifSaved: true }
     case 'CLEAR_SAVED':   return { ...state, saved: false, pwSaved: false, notifSaved: false }
     case 'PROFILE_ERROR': return { ...state, profileError: action.payload }
+    case 'RESET_ORDERS':  return { ...state, ordersLoaded: false }   // ADD THIS LINE
     default: return state
   }
 }
@@ -520,23 +522,17 @@ const ProfilePage: React.FC = () => {
     })()
   }, [navigate])
 
-  // Load orders once (deferred until component is interactive)
+  // Fetch orders on mount and whenever the user switches to the Orders tab
   useEffect(() => {
-    if (state.ordersLoaded) return
+    dispatch({ type: 'RESET_ORDERS' })
     apiFetch('/api/orders/my/')
-  .then(r => {
-    console.log('orders status:', r.status)
-    return r.ok ? r.json() : []
-  })
-  .then(data => {
-    console.log('orders data:', data)
-    dispatch({ type: 'SET_ORDERS', payload: Array.isArray(data) ? data : (data.results ?? []) })
-  })
-  .catch(e => {
-    console.error('orders error:', e)
-    dispatch({ type: 'SET_ORDERS', payload: [] })
-  })
-  }, [state.ordersLoaded])
+      .then(r => r.ok ? r.json() : [])
+      .then(data => dispatch({
+        type: 'SET_ORDERS',
+        payload: Array.isArray(data) ? data : (data.results ?? []),
+      }))
+      .catch(() => dispatch({ type: 'SET_ORDERS', payload: [] }))
+  }, [tab])
 
   // Auto-clear success toasts
   useEffect(() => {
