@@ -7,8 +7,6 @@ import { Product } from '../types';
 import ProductImage from '../components/ProductImage';
 import { apiFetch } from '../lib/api';
 
-// ── API base URL from environment ─────────────────────────────────────────────
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://harvesttable-szli.onrender.com';
 
 const C = {
   bg: '#faf7f2', surface: '#ffffff', border: '#ede5d8', borderHov: '#c8a882',
@@ -66,13 +64,6 @@ function localName(product: Product, lang: string): string {
   return product.name;
 }
 
-function getCsrfToken(): string {
-  for (const cookie of document.cookie.split(';')) {
-    const [k, v] = cookie.trim().split('=');
-    if (k === 'csrftoken') return decodeURIComponent(v ?? '');
-  }
-  return '';
-}
 
 const INITIAL_FORM = {
   firstName: '', lastName: '', email: '', phone: '',
@@ -243,6 +234,7 @@ const CheckoutPage: React.FC = () => {
   const [vis, setVis]                 = useState(false);
   const [orderNum, setOrderNum]       = useState('');
   const [submitting, setSubmitting]   = useState(false);
+  const [confirmedTotal, setConfirmedTotal] = useState(0);   
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [form, setForm]               = useState(INITIAL_FORM);
@@ -263,24 +255,7 @@ const CheckoutPage: React.FC = () => {
   const hasAnyItems = items.length > 0 || allServerGiftBoxes.length > 0 || allGuestGiftBoxes.length > 0;
 
   // ── Totals (mirrors CartContext logic) ────────────────────────────────────
-// Compute true subtotal from all sources so the displayed total matches the backend
-  const regularItemsTotal = items.reduce(
-    (sum, i) => sum + parseFloat(i.product.price) * i.quantity,
-    0
-  )
-  const serverGiftBoxTotal = allServerGiftBoxes.reduce(
-    (sum, gb) => sum + parseFloat(gb.total_price),   // total_price already = (items_price + packaging_fee) * quantity
-    0
-  )
-  const guestGiftBoxTotal = allGuestGiftBoxes.reduce(
-    (sum, gb) =>
-      sum +
-      (gb.products.reduce((s, p) => s + parseFloat(p.price), 0) + gb.packaging_fee) *
-        gb.quantity,
-    0
-  )
   const grandTotal = totalPrice + shippingCost;
-
 
   const handleContinueToReview = () => {
     const errors = validateStep1(form);
@@ -350,6 +325,7 @@ const CheckoutPage: React.FC = () => {
         throw new Error(err?.detail || err?.error || `Error ${res.status}`);
       }
       const data = await res.json();
+      setConfirmedTotal(grandTotal);
       setOrderNum(String(data.order_number).slice(0, 8).toUpperCase());
       clearCart();
       setPlaced(true);
@@ -426,7 +402,7 @@ const CheckoutPage: React.FC = () => {
                 <rect x="9" y="11" width="12" height="10" rx="2"/><circle cx="15" cy="16" r="2"/>
               </svg>
               <p style={{ fontSize: 13, color: C.accent, margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
-                {t('checkout.codReadyAmount')} <strong>${grandTotal.toFixed(2)}</strong> {t('checkout.codReadyAmount2')}
+                {t('checkout.codReadyAmount')} <strong>${confirmedTotal.toFixed(2)}</strong> {t('checkout.codReadyAmount2')}
               </p>
             </div>
           )}
